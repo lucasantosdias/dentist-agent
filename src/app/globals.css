@@ -1,0 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+#__next { height: 100%; }
+
+/* Smooth sidebar transition */
+.ant-layout-sider { transition: all 0.2s ease; }
+/* Remove extra bottom padding on content */
+.ant-layout-content { min-height: auto !important; }
+
+/* Dark sidebar customizations */
+.dark-sidebar .ant-divider {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Card hover effect */
+.stat-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Table row cursor */
+.clickable-row { cursor: pointer; }
+.clickable-row:hover td { background: #f1f5f9 !important; }

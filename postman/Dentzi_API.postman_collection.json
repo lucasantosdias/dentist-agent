@@ -1,0 +1,402 @@
+{
+  "info": {
+    "name": "Dentzi AI - Dental Clinic API",
+    "description": "API collection for the Dentzi AI dental clinic secretary agent.\n\nAll payloads use snake_case. Some admin endpoints accept camelCase as fallback for backward compatibility.\n\n**Base URL**: `http://localhost:3000`\n\n**Default Clinic ID**: `00000000-0000-0000-0000-000000000001`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "clinic_id",
+      "value": "00000000-0000-0000-0000-000000000001",
+      "type": "string"
+    },
+    {
+      "key": "professional_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Channels",
+      "description": "Conversational endpoints for patient-facing channels.",
+      "item": [
+        {
+          "name": "Send Inbound Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/channels/sim/inbound",
+              "host": ["{{base_url}}"],
+              "path": ["api", "channels", "sim", "inbound"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clinic_id\": \"{{clinic_id}}\",\n  \"channel\": \"sim\",\n  \"external_user_id\": \"user_001\",\n  \"message_id\": \"m001\",\n  \"text\": \"Olá, bom dia!\"\n}"
+            },
+            "description": "Process an inbound message through the conversation orchestrator.\n\n**Flow:** Patient lookup/create → Conversation lookup/create → LLM interpretation → Intent routing → Response\n\n**Idempotent:** Replaying the same `channel + external_user_id + message_id` returns the cached response.\n\n### Request Fields\n| Field | Type | Required | Description |\n|-------|------|----------|-------------|\n| `clinic_id` | string (UUID) | No | Clinic ID. Defaults to `DEFAULT_CLINIC_ID` |\n| `channel` | `\"sim\"` | Yes | Channel identifier |\n| `external_user_id` | string | Yes | External user identifier |\n| `message_id` | string | Yes | Unique message ID (for idempotency) |\n| `text` | string | Yes | Patient message text |\n\n### Response Fields\n| Field | Type | Description |\n|-------|------|-------------|\n| `reply_text` | string | Bot response text |\n| `conversation_state` | string | `AUTO`, `WAITING`, `HUMAN`, `FINALIZADA` |\n| `patient_state` | string | `LEAD_NEW`, `LEAD_QUALIFIED`, `ACTIVE`, etc. |\n| `appointment` | object? | Present when appointment is created/cancelled/confirmed |\n| `appointment.id` | string | Appointment UUID |\n| `appointment.status` | string | `AGENDADA`, `CONFIRMADA`, `CANCELADA`, etc. |\n| `appointment.starts_at` | string | Start datetime |\n| `appointment.ends_at` | string | End datetime |\n| `appointment.professional_name` | string | Professional display name |\n| `appointment.service_code` | string | Service code |"
+          },
+          "response": [
+            {
+              "name": "Greeting",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"reply_text\": \"Bom dia, bem-vindo à Dentzi! Como posso te ajudar hoje?\",\n  \"conversation_state\": \"AUTO\",\n  \"patient_state\": \"LEAD_NEW\"\n}"
+            },
+            {
+              "name": "Appointment Created",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"reply_text\": \"Agendamento realizado para 16/03/2026 09:00:00.\",\n  \"conversation_state\": \"AUTO\",\n  \"patient_state\": \"ACTIVE\",\n  \"appointment\": {\n    \"id\": \"a1b2c3d4-...\",\n    \"status\": \"AGENDADA\",\n    \"starts_at\": \"2026-03-16T09:00:00-03:00\",\n    \"ends_at\": \"2026-03-16T10:00:00-03:00\",\n    \"professional_name\": \"Dr. João\",\n    \"service_code\": \"LIMPEZA\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Send Message — Book Appointment (Step 1: Service)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/channels/sim/inbound",
+              "host": ["{{base_url}}"],
+              "path": ["api", "channels", "sim", "inbound"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"sim\",\n  \"external_user_id\": \"user_001\",\n  \"message_id\": \"m002\",\n  \"text\": \"Quero agendar uma limpeza dental\"\n}"
+            },
+            "description": "Start a booking flow. The bot will begin collecting required fields:\n- `service_code`\n- `professional_name`\n- `datetime_iso`\n- `full_name`"
+          }
+        },
+        {
+          "name": "Send Message — Book Appointment (Step 2: Professional + Date)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/channels/sim/inbound",
+              "host": ["{{base_url}}"],
+              "path": ["api", "channels", "sim", "inbound"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"sim\",\n  \"external_user_id\": \"user_001\",\n  \"message_id\": \"m003\",\n  \"text\": \"Com Dr. João, segunda-feira às 10h\"\n}"
+            },
+            "description": "Provide professional preference and desired date/time. The bot will propose a slot and hold it temporarily (10 min TTL)."
+          }
+        },
+        {
+          "name": "Send Message — Book Appointment (Step 3: Name)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/channels/sim/inbound",
+              "host": ["{{base_url}}"],
+              "path": ["api", "channels", "sim", "inbound"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"sim\",\n  \"external_user_id\": \"user_001\",\n  \"message_id\": \"m004\",\n  \"text\": \"Lucas Silva Dias\"\n}"
+            },
+            "description": "Provide full name. The bot will ask for confirmation."
+          }
+        },
+        {
+          "name": "Send Message — Book Appointment (Step 4: Confirm)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/channels/sim/inbound",
+              "host": ["{{base_url}}"],
+              "path": ["api", "channels", "sim", "inbound"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"sim\",\n  \"external_user_id\": \"user_001\",\n  \"message_id\": \"m005\",\n  \"text\": \"Confirmo\"\n}"
+            },
+            "description": "Confirm the held slot. This creates the appointment and enqueues a Google Calendar event."
+          }
+        },
+        {
+          "name": "Send Message — List Services",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/channels/sim/inbound",
+              "host": ["{{base_url}}"],
+              "path": ["api", "channels", "sim", "inbound"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"sim\",\n  \"external_user_id\": \"user_002\",\n  \"message_id\": \"m001\",\n  \"text\": \"Quais serviços vocês oferecem?\"\n}"
+            },
+            "description": "Ask for the list of services offered by the clinic."
+          }
+        },
+        {
+          "name": "Send Message — Cancel Appointment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/channels/sim/inbound",
+              "host": ["{{base_url}}"],
+              "path": ["api", "channels", "sim", "inbound"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"sim\",\n  \"external_user_id\": \"user_001\",\n  \"message_id\": \"m010\",\n  \"text\": \"Quero cancelar minha consulta\"\n}"
+            },
+            "description": "Request appointment cancellation. If the patient has multiple appointments, the bot asks for clarification."
+          }
+        },
+        {
+          "name": "Send Message — Talk to Human",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/channels/sim/inbound",
+              "host": ["{{base_url}}"],
+              "path": ["api", "channels", "sim", "inbound"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"sim\",\n  \"external_user_id\": \"user_001\",\n  \"message_id\": \"m011\",\n  \"text\": \"Quero falar com um atendente\"\n}"
+            },
+            "description": "Request human handoff. Transitions conversation to HUMAN state."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin — Professionals",
+      "description": "Manage professionals (dentists/staff).",
+      "item": [
+        {
+          "name": "List Professionals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/professionals?clinic_id={{clinic_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "professionals"],
+              "query": [
+                {
+                  "key": "clinic_id",
+                  "value": "{{clinic_id}}",
+                  "description": "Optional. Defaults to DEFAULT_CLINIC_ID"
+                }
+              ]
+            },
+            "description": "List all active professionals for a clinic.\n\n### Response\n```json\n[\n  {\n    \"id\": \"uuid\",\n    \"display_name\": \"Dr. João\",\n    \"email\": \"joao@dentzi.com.br\",\n    \"phone\": null,\n    \"timezone\": \"America/Sao_Paulo\",\n    \"active\": true\n  }\n]\n```"
+          }
+        },
+        {
+          "name": "Create Professional",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/professionals",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "professionals"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"Dr. Carlos\",\n  \"email\": \"carlos@dentzi.com.br\",\n  \"phone\": \"+5511988887777\",\n  \"timezone\": \"America/Sao_Paulo\",\n  \"service_ids\": []\n}"
+            },
+            "description": "Register a new professional.\n\n### Request Fields\n| Field | Type | Required | Description |\n|-------|------|----------|-------------|\n| `display_name` | string | Yes | Professional's display name |\n| `email` | string | No | Email address |\n| `phone` | string | No | Phone number |\n| `timezone` | string | No | Defaults to `America/Sao_Paulo` |\n| `service_ids` | string[] | No | Service IDs to link |\n\n### Response (201)\n```json\n{\n  \"id\": \"uuid\",\n  \"display_name\": \"Dr. Carlos\",\n  \"email\": \"carlos@dentzi.com.br\",\n  \"phone\": \"+5511988887777\",\n  \"timezone\": \"America/Sao_Paulo\",\n  \"active\": true\n}\n```"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin — Availability",
+      "description": "Manage professional availability rules and query available slots.",
+      "item": [
+        {
+          "name": "Create Availability Rule",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/professionals/{{professional_id}}/availability-rules",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "professionals", "{{professional_id}}", "availability-rules"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"weekday\": 1,\n  \"start_time\": \"08:00\",\n  \"end_time\": \"12:00\",\n  \"slot_duration_minutes\": 30\n}"
+            },
+            "description": "Create a recurring weekly availability window for a professional.\n\n### Request Fields\n| Field | Type | Required | Description |\n|-------|------|----------|-------------|\n| `weekday` | number (0-6) | Yes | 0=Sunday, 1=Monday, ..., 6=Saturday |\n| `start_time` | string | Yes | Start time, e.g. `\"08:00\"` |\n| `end_time` | string | Yes | End time, e.g. `\"12:00\"` |\n| `slot_duration_minutes` | number | No | Slot duration override |\n\n### Response (201)\n```json\n{\n  \"id\": \"uuid\",\n  \"professional_id\": \"uuid\",\n  \"weekday\": 1,\n  \"start_time\": \"08:00\",\n  \"end_time\": \"12:00\",\n  \"slot_duration_minutes\": 30,\n  \"location_id\": null\n}\n```"
+          }
+        },
+        {
+          "name": "List Availability Rules",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/professionals/{{professional_id}}/availability-rules",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "professionals", "{{professional_id}}", "availability-rules"]
+            },
+            "description": "List all availability rules for a professional.\n\n### Response (200)\n```json\n[\n  {\n    \"id\": \"uuid\",\n    \"professional_id\": \"uuid\",\n    \"weekday\": 1,\n    \"start_time\": \"08:00\",\n    \"end_time\": \"12:00\",\n    \"slot_duration_minutes\": 30,\n    \"location_id\": null\n  }\n]\n```"
+          }
+        },
+        {
+          "name": "Get Available Slots",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/professionals/{{professional_id}}/available-slots?service_code=LIMPEZA&date=2026-03-16&clinic_id={{clinic_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "professionals", "{{professional_id}}", "available-slots"],
+              "query": [
+                {
+                  "key": "service_code",
+                  "value": "LIMPEZA",
+                  "description": "Required. Service code"
+                },
+                {
+                  "key": "date",
+                  "value": "2026-03-16",
+                  "description": "Required. Target date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "clinic_id",
+                  "value": "{{clinic_id}}",
+                  "description": "Optional. Defaults to DEFAULT_CLINIC_ID"
+                }
+              ]
+            },
+            "description": "Generate available appointment slots for a professional on a given date.\n\nUses 5-layer availability calculation:\n`rules ∩ ¬exceptions ∩ ¬appointments ∩ ¬holds ∩ ¬googleBusy`\n\n### Response (200)\n```json\n{\n  \"professional\": \"uuid\",\n  \"service\": \"LIMPEZA\",\n  \"date\": \"2026-03-16\",\n  \"slots\": [\n    {\n      \"starts_at\": \"2026-03-16T08:00:00-03:00\",\n      \"ends_at\": \"2026-03-16T09:00:00-03:00\",\n      \"starts_at_utc\": \"2026-03-16T11:00:00.000Z\",\n      \"ends_at_utc\": \"2026-03-16T12:00:00.000Z\"\n    }\n  ]\n}\n```"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin — Appointments",
+      "description": "Direct appointment management (bypasses conversation flow).",
+      "item": [
+        {
+          "name": "Book Appointment (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/appointments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "appointments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clinic_id\": \"{{clinic_id}}\",\n  \"patient_id\": \"PATIENT_UUID_HERE\",\n  \"professional_id\": \"{{professional_id}}\",\n  \"service_code\": \"LIMPEZA\",\n  \"starts_at\": \"2026-03-16T10:00:00-03:00\",\n  \"patient_name\": \"Lucas Silva Dias\"\n}"
+            },
+            "description": "Book an appointment directly (admin bypass).\n\n**Flow:**\n1. Validate professional can perform service\n2. Check platform availability (appointments + holds)\n3. Check Google Calendar free/busy (if connected)\n4. Create appointment\n5. Enqueue calendar outbox event\n\n### Request Fields\n| Field | Type | Required | Description |\n|-------|------|----------|-------------|\n| `clinic_id` | string (UUID) | No | Defaults to `DEFAULT_CLINIC_ID` |\n| `patient_id` | string (UUID) | Yes | Patient identifier |\n| `professional_id` | string (UUID) | Yes | Professional identifier |\n| `service_code` | string | Yes | Service code (e.g. `LIMPEZA`) |\n| `starts_at` | string (ISO 8601) | Yes | Appointment start time |\n| `patient_name` | string | No | Patient name for calendar event |\n\n### Response (201)\n```json\n{\n  \"id\": \"uuid\",\n  \"status\": \"AGENDADA\",\n  \"professional\": \"Dr. João\",\n  \"service\": \"LIMPEZA\",\n  \"starts_at\": \"2026-03-16T10:00:00-03:00\",\n  \"ends_at\": \"2026-03-16T11:00:00-03:00\",\n  \"starts_at_utc\": \"2026-03-16T13:00:00.000Z\",\n  \"ends_at_utc\": \"2026-03-16T14:00:00.000Z\"\n}\n```\n\n### Error Responses\n- `400` Missing required fields, slot in past, professional cannot perform service\n- `404` Service or professional not found\n- `409` Slot conflicts with existing appointment/hold or Google Calendar"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin — Google Calendar",
+      "description": "Google Calendar integration management.",
+      "item": [
+        {
+          "name": "Connect Google Calendar",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/professionals/{{professional_id}}/google-calendar",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "professionals", "{{professional_id}}", "google-calendar"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"google_calendar_id\": \"professional@gmail.com\",\n  \"access_token\": \"ya29.xxx\",\n  \"refresh_token\": \"1//xxx\",\n  \"token_expires_at\": \"2026-03-14T00:00:00Z\"\n}"
+            },
+            "description": "Connect a professional's Google Calendar.\n\nPerforms:\n1. OAuth connection setup\n2. Watch channel creation for push notifications\n3. Initial calendar sync\n\n### Request Fields\n| Field | Type | Required | Description |\n|-------|------|----------|-------------|\n| `google_calendar_id` | string | Yes | Google Calendar ID (usually email) |\n| `access_token` | string | Yes | OAuth2 access token |\n| `refresh_token` | string | Yes | OAuth2 refresh token |\n| `token_expires_at` | string (ISO 8601) | Yes | Token expiration datetime |\n\n### Response (201)\n```json\n{\n  \"connection_id\": \"uuid\"\n}\n```\n\n### Error Responses\n- `400` Missing required fields\n- `404` Professional not found\n- `501` Google Calendar not configured (missing `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`)"
+          }
+        },
+        {
+          "name": "Process Calendar Outbox",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/outbox/process",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "outbox", "process"]
+            },
+            "description": "Process pending calendar outbox events.\n\nCreates Google Calendar events for confirmed appointments that haven't been synced yet.\n\n**Idempotent:** If event was already created at Google but local update failed, the processor detects the existing `external_event_id` and skips creation.\n\n### Response (200)\n```json\n{\n  \"processed\": 2,\n  \"succeeded\": 1,\n  \"failed\": 1,\n  \"details\": [\n    { \"id\": \"uuid\", \"status\": \"done\" },\n    { \"id\": \"uuid\", \"status\": \"failed\", \"error\": \"No calendar connection for professional\" }\n  ]\n}\n```\n\n### Error Responses\n- `501` Google Calendar not configured"
+          }
+        },
+        {
+          "name": "Google Calendar Webhook (Internal)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-goog-channel-id",
+                "value": "CHANNEL_ID",
+                "description": "Google push notification channel ID"
+              },
+              {
+                "key": "x-goog-resource-id",
+                "value": "RESOURCE_ID",
+                "description": "Google Calendar resource ID"
+              },
+              {
+                "key": "x-goog-resource-state",
+                "value": "exists",
+                "description": "Resource state: 'sync' (initial) or 'exists' (update)"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/integrations/google-calendar/webhook",
+              "host": ["{{base_url}}"],
+              "path": ["api", "integrations", "google-calendar", "webhook"]
+            },
+            "description": "Google Calendar push notification endpoint.\n\n**Note:** This is called by Google, not manually. Included for reference.\n\n- `sync` state: Initial verification, just acknowledges\n- `exists` state: Triggers incremental calendar sync → creates availability exceptions for busy events\n\n### Response (200)\n```json\n{ \"ok\": true }\n```"
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ]
+}

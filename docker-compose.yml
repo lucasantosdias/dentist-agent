@@ -1,0 +1,62 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: dentzi-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://app:app@postgres:5432/dentzi_ai?schema=public
+      DIRECT_DATABASE_URL: postgresql://app:app@postgres:5432/dentzi_ai?schema=public
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      NEXT_TELEMETRY_DISABLED: "1"
+      TZ: America/Sao_Paulo
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - app_node_modules:/app/node_modules
+      - app_next:/app/.next
+    command: npm run dev -- -H 0.0.0.0 -p 3000
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: dentzi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dentzi_ai
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d dentzi_ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: dentzi-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+  app_node_modules:
+  app_next:

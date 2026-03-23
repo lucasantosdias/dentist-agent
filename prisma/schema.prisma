@@ -1,0 +1,541 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────
+
+enum PatientLifecycleState {
+  LEAD_NEW
+  LEAD_QUALIFIED
+  LEAD_INACTIVE
+  ACTIVE
+  INACTIVE
+}
+
+enum ConversationState {
+  AUTO
+  WAITING
+  HUMAN
+  FINALIZADA
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum AppointmentStatus {
+  AGENDADA
+  CONFIRMADA
+  CANCELADA
+  NO_SHOW
+  COMPARECEU
+}
+
+enum CancelledBy {
+  PACIENTE
+  BOT
+  HUMANO
+  SISTEMA
+}
+
+enum SlotHoldStatus {
+  HELD
+  EXPIRED
+  RELEASED
+  CONVERTED
+}
+
+enum OutboxAction {
+  CREATE_EVENT
+  UPDATE_EVENT
+  CANCEL_EVENT
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+enum AvailabilityExceptionSource {
+  MANUAL
+  GOOGLE_CALENDAR
+  SYSTEM
+}
+
+enum AvailabilityExceptionStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum CalendarProvider {
+  GOOGLE
+}
+
+enum ClinicProfessionalRole {
+  PROFESSIONAL
+  CLINIC_MANAGER
+}
+
+// ─── Models ─────────────────────────────────────────────────
+
+model Clinic {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  legalName String?  @map("legal_name")
+  document  String?
+  slug      String   @unique
+  phone     String?
+  email     String?
+  address   String?
+  timezone  String   @default("America/Sao_Paulo")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  clinicProfessionals ClinicProfessional[]
+  patients            Patient[]
+  services            Service[]
+  conversations       Conversation[]
+  appointments        Appointment[]
+  slotHolds           SlotHold[]
+  settings            ClinicSettings?
+  insurancePlans      InsurancePlan[]
+  returnCycleRules    ReturnCycleRule[]
+  knowledgeDocuments  KnowledgeDocument[]
+
+  @@map("clinic")
+}
+
+model ClinicProfessional {
+  clinicId       String                  @db.Uuid @map("clinic_id")
+  professionalId String                  @db.Uuid @map("professional_id")
+  role           ClinicProfessionalRole  @default(PROFESSIONAL)
+  active         Boolean                 @default(true)
+  createdAt      DateTime                @default(now()) @map("created_at")
+
+  clinic       Clinic       @relation(fields: [clinicId], references: [id])
+  professional Professional @relation(fields: [professionalId], references: [id])
+
+  @@id([clinicId, professionalId])
+  @@index([professionalId])
+  @@map("clinic_professional")
+}
+
+model Patient {
+  id                String                @id @default(uuid()) @db.Uuid
+  clinicId          String                @db.Uuid @map("clinic_id")
+  externalUserId    String                @map("external_user_id")
+  defaultChannel    String                @map("default_channel")
+  fullName          String?               @map("full_name")
+  phoneE164         String?               @map("phone_e164")
+  email             String?
+  birthDate         DateTime?             @map("birth_date")
+  state             PatientLifecycleState @default(LEAD_NEW)
+  lastInteractionAt DateTime?             @map("last_interaction_at")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+
+  clinic        Clinic         @relation(fields: [clinicId], references: [id])
+  conversations Conversation[]
+  appointments  Appointment[]
+  slotHolds     SlotHold[]
+
+  @@unique([clinicId, defaultChannel, externalUserId])
+  @@index([clinicId])
+  @@index([state])
+  @@map("patient")
+}
+
+model Conversation {
+  id                      String            @id @default(uuid()) @db.Uuid
+  clinicId                String            @db.Uuid @map("clinic_id")
+  patientId               String            @db.Uuid @map("patient_id")
+  channel                 String
+  state                   ConversationState @default(AUTO)
+  attempts                Int               @default(0)
+  currentIntent           String?           @map("current_intent")
+  collectedDataJson       Json              @default("{}") @map("collected_data_json")
+  missingRequirementsJson Json              @default("[]") @map("missing_requirements_json")
+  currentFunnelStep       String?           @map("current_funnel_step")
+  lastMessageAt           DateTime?         @map("last_message_at")
+  createdAt               DateTime          @default(now()) @map("created_at")
+  updatedAt               DateTime          @updatedAt @map("updated_at")
+
+  clinic           Clinic                   @relation(fields: [clinicId], references: [id])
+  patient          Patient                  @relation(fields: [patientId], references: [id])
+  messages         Message[]
+  slotHolds        SlotHold[]
+  appointments     Appointment[]
+  processedInbound ProcessedInboundMessage[]
+
+  @@index([clinicId])
+  @@index([patientId, updatedAt])
+  @@map("conversation")
+}
+
+model Message {
+  id                String           @id @default(uuid()) @db.Uuid
+  conversationId    String           @db.Uuid @map("conversation_id")
+  channel           String
+  externalUserId    String           @map("external_user_id")
+  externalMessageId String?          @map("external_message_id")
+  direction         MessageDirection
+  text              String
+  llmIntent         String?          @map("llm_intent")
+  entitiesJson      Json?            @map("entities_json")
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@unique([channel, externalUserId, externalMessageId])
+  @@index([conversationId, createdAt])
+  @@map("message")
+}
+
+model ProcessedInboundMessage {
+  id             String   @id @default(uuid()) @db.Uuid
+  channel        String
+  externalUserId String   @map("external_user_id")
+  messageId      String   @map("message_id")
+  conversationId String?  @db.Uuid @map("conversation_id")
+  response       Json
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+
+  @@unique([channel, externalUserId, messageId])
+  @@map("processed_inbound_message")
+}
+
+model Service {
+  id              String   @id @default(uuid()) @db.Uuid
+  clinicId        String   @db.Uuid @map("clinic_id")
+  code            String
+  displayName     String   @map("display_name")
+  description     String?
+  durationMinutes Int      @map("duration_minutes")
+  price           Decimal? @db.Decimal(10, 2)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  clinic               Clinic                @relation(fields: [clinicId], references: [id])
+  appointments         Appointment[]
+  professionalServices ProfessionalService[]
+  slotHolds            SlotHold[]
+
+  @@unique([clinicId, code])
+  @@index([clinicId, active])
+  @@map("service")
+}
+
+model Professional {
+  id          String   @id @default(uuid()) @db.Uuid
+  displayName String   @unique @map("display_name")
+  specialty   String?
+  email       String?
+  phone       String?
+  timezone    String   @default("America/Sao_Paulo")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  clinicProfessionals       ClinicProfessional[]
+  appointments              Appointment[]
+  professionalServices      ProfessionalService[]
+  slotHolds                 SlotHold[]
+  calendarConnections       ProfessionalCalendarConnection[]
+  availabilityRules         ProfessionalAvailabilityRule[]
+  availabilityExceptions    ProfessionalAvailabilityException[]
+  calendarWatchChannels     CalendarWatchChannel[]
+  calendarSyncStates        CalendarSyncState[]
+
+  @@index([active])
+  @@map("professional")
+}
+
+model ProfessionalService {
+  professionalId String   @db.Uuid @map("professional_id")
+  serviceId      String   @db.Uuid @map("service_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  professional Professional @relation(fields: [professionalId], references: [id])
+  service      Service      @relation(fields: [serviceId], references: [id])
+
+  @@id([professionalId, serviceId])
+  @@map("professional_service")
+}
+
+model ProfessionalAvailabilityRule {
+  id                  String   @id @default(uuid()) @db.Uuid
+  professionalId      String   @db.Uuid @map("professional_id")
+  weekday             Int      @db.SmallInt
+  startTime           String   @map("start_time")
+  endTime             String   @map("end_time")
+  slotDurationMinutes Int?     @map("slot_duration_minutes")
+  locationId          String?  @db.Uuid @map("location_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  professional Professional @relation(fields: [professionalId], references: [id])
+
+  @@index([professionalId, weekday])
+  @@map("professional_availability_rule")
+}
+
+model ProfessionalAvailabilityException {
+  id              String                      @id @default(uuid()) @db.Uuid
+  professionalId  String                      @db.Uuid @map("professional_id")
+  source          AvailabilityExceptionSource
+  startsAt        DateTime                    @map("starts_at")
+  endsAt          DateTime                    @map("ends_at")
+  reason          String?
+  externalEventId String?                     @map("external_event_id")
+  status          AvailabilityExceptionStatus @default(ACTIVE)
+  createdAt       DateTime                    @default(now()) @map("created_at")
+  updatedAt       DateTime                    @updatedAt @map("updated_at")
+
+  professional Professional @relation(fields: [professionalId], references: [id])
+
+  @@index([professionalId, startsAt, endsAt])
+  @@index([professionalId, externalEventId])
+  @@index([status])
+  @@map("professional_availability_exception")
+}
+
+model ProfessionalCalendarConnection {
+  id               String           @id @default(uuid()) @db.Uuid
+  professionalId   String           @db.Uuid @map("professional_id")
+  provider         CalendarProvider @default(GOOGLE)
+  googleCalendarId String           @map("google_calendar_id")
+  accessToken      String           @map("access_token")
+  refreshToken     String           @map("refresh_token")
+  tokenExpiresAt   DateTime         @map("token_expires_at")
+  lastSyncAt       DateTime?        @map("last_sync_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  professional Professional @relation(fields: [professionalId], references: [id])
+
+  @@unique([professionalId, provider])
+  @@index([professionalId])
+  @@map("professional_calendar_connection")
+}
+
+model CalendarWatchChannel {
+  id             String   @id @default(uuid()) @db.Uuid
+  professionalId String   @db.Uuid @map("professional_id")
+  channelId      String   @unique @map("channel_id")
+  resourceId     String   @map("resource_id")
+  expiration     DateTime
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  professional Professional @relation(fields: [professionalId], references: [id])
+
+  @@index([professionalId])
+  @@index([expiration])
+  @@map("calendar_watch_channel")
+}
+
+model CalendarSyncState {
+  id             String   @id @default(uuid()) @db.Uuid
+  professionalId String   @unique @db.Uuid @map("professional_id")
+  syncToken      String   @map("sync_token")
+  lastSyncAt     DateTime @map("last_sync_at")
+
+  professional Professional @relation(fields: [professionalId], references: [id])
+
+  @@map("calendar_sync_state")
+}
+
+model Appointment {
+  id                 String            @id @default(uuid()) @db.Uuid
+  clinicId           String            @db.Uuid @map("clinic_id")
+  patientId          String            @db.Uuid @map("patient_id")
+  conversationId     String?           @db.Uuid @map("conversation_id")
+  serviceId          String            @db.Uuid @map("service_id")
+  professionalId     String            @db.Uuid @map("professional_id")
+  startsAt           DateTime          @map("starts_at")
+  endsAt             DateTime          @map("ends_at")
+  status             AppointmentStatus @default(AGENDADA)
+  cancelledAt        DateTime?         @map("cancelled_at")
+  cancelledBy        CancelledBy?      @map("cancelled_by")
+  cancellationReason String?           @map("cancellation_reason")
+  createdBy          String            @default("BOT") @map("created_by")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+
+  clinic         Clinic         @relation(fields: [clinicId], references: [id])
+  patient        Patient        @relation(fields: [patientId], references: [id])
+  conversation   Conversation?  @relation(fields: [conversationId], references: [id])
+  service        Service        @relation(fields: [serviceId], references: [id])
+  professional   Professional   @relation(fields: [professionalId], references: [id])
+  calendarOutbox CalendarOutbox[]
+
+  @@index([clinicId])
+  @@index([professionalId, startsAt, endsAt])
+  @@index([patientId, startsAt])
+  @@index([status])
+  @@map("appointment")
+}
+
+model SlotHold {
+  id             String         @id @default(uuid()) @db.Uuid
+  clinicId       String         @db.Uuid @map("clinic_id")
+  conversationId String         @db.Uuid @map("conversation_id")
+  patientId      String         @db.Uuid @map("patient_id")
+  serviceId      String         @db.Uuid @map("service_id")
+  professionalId String         @db.Uuid @map("professional_id")
+  startsAt       DateTime       @map("starts_at")
+  endsAt         DateTime       @map("ends_at")
+  status         SlotHoldStatus @default(HELD)
+  expiresAt      DateTime       @map("expires_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  clinic       Clinic       @relation(fields: [clinicId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  patient      Patient      @relation(fields: [patientId], references: [id])
+  service      Service      @relation(fields: [serviceId], references: [id])
+  professional Professional @relation(fields: [professionalId], references: [id])
+
+  @@index([clinicId])
+  @@index([professionalId, startsAt, endsAt])
+  @@index([status, expiresAt])
+  @@index([conversationId, status])
+  @@map("slot_hold")
+}
+
+model CalendarOutbox {
+  id              String       @id @default(uuid()) @db.Uuid
+  appointmentId   String       @db.Uuid @map("appointment_id")
+  aggregateType   String       @map("aggregate_type")
+  action          OutboxAction
+  status          OutboxStatus @default(PENDING)
+  attempts        Int          @default(0)
+  externalEventId String?      @map("external_event_id")
+  payloadJson     Json         @map("payload_json")
+  lastError       String?      @map("last_error")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([appointmentId])
+  @@map("calendar_outbox")
+}
+
+// ─── Clinic Configuration ─────────────────────────────────
+
+model ClinicSettings {
+  id                       String @id @default(uuid()) @db.Uuid
+  clinicId                 String @unique @db.Uuid @map("clinic_id")
+
+  // Identity
+  botName                  String @default("Assistente Dentzi") @map("bot_name")
+  clinicDisplayName        String @map("clinic_display_name")
+
+  // Tone (structured, NOT free-form prompt editing)
+  tone                     String @default("warm_professional")
+
+  // Templates
+  greetingTemplate         String @default("Olá! Bem-vindo(a) à {clinic_name}. Como posso te ajudar?") @map("greeting_template")
+  fallbackMessage          String @default("Não consegui entender. Posso te encaminhar para um atendente, se preferir.") @map("fallback_message")
+
+  // Operating hours (per clinic)
+  workingHourStart         Int    @default(8) @map("working_hour_start")
+  workingHourEnd           Int    @default(19) @map("working_hour_end")
+  workingDaysText          String @default("segunda a sexta") @map("working_days_text")
+  timezone                 String @default("America/Sao_Paulo")
+
+  // Behavior
+  maxUnknownBeforeFallback Int    @default(3) @map("max_unknown_before_fallback")
+  holdTtlMinutes           Int    @default(10) @map("hold_ttl_minutes")
+  slotStepMinutes          Int    @default(30) @map("slot_step_minutes")
+
+  // Response templates (deterministic scheduling flow)
+  tplAskName               String @default("Qual é o seu nome completo?") @map("tpl_ask_name")
+  tplAskCareType           String @default("O atendimento seria particular ou por convênio?") @map("tpl_ask_care_type")
+  tplAskService            String @default("Qual procedimento você gostaria de agendar? Temos: {services}.") @map("tpl_ask_service")
+  tplAskDatetime           String @default("Qual data e horário você prefere para o atendimento?") @map("tpl_ask_datetime")
+  tplAskProfessional       String @default("Tem preferência por algum profissional?") @map("tpl_ask_professional")
+  tplHoldCreated           String @default("Reservei temporariamente {slot} com {professional} para {service}. Responda CONFIRMO para finalizar em até {ttl} minutos.") @map("tpl_hold_created")
+  tplAppointmentConfirmed  String @default("Agendamento realizado para {datetime}. Até lá!") @map("tpl_appointment_confirmed")
+  tplNoSlots               String @default("Não encontrei horários disponíveis. Quer tentar outro dia ou profissional?") @map("tpl_no_slots")
+  tplEscalateHuman         String @default("Vou encaminhar você para um atendente humano. Aguarde um momento.") @map("tpl_escalate_human")
+
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@map("clinic_settings")
+}
+
+// ─── Insurance Plans ──────────────────────────────────────
+
+model InsurancePlan {
+  id        String   @id @default(uuid()) @db.Uuid
+  clinicId  String   @db.Uuid @map("clinic_id")
+  name      String
+  code      String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@unique([clinicId, name])
+  @@map("insurance_plan")
+}
+
+// ─── Return Cycle Rules ───────────────────────────────────
+
+model ReturnCycleRule {
+  id             String   @id @default(uuid()) @db.Uuid
+  clinicId       String?  @db.Uuid @map("clinic_id")
+  serviceCode    String   @map("service_code")
+  intervalMonths Int      @map("interval_months")
+  description    String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  clinic Clinic? @relation(fields: [clinicId], references: [id])
+
+  @@unique([clinicId, serviceCode])
+  @@map("return_cycle_rule")
+}
+
+// ─── Knowledge Documents (RAG) ────────────────────────────
+
+model KnowledgeDocument {
+  id           String   @id @default(uuid()) @db.Uuid
+  clinicId     String?  @db.Uuid @map("clinic_id")
+  documentType String   @map("document_type")
+  category     String?
+  title        String
+  content      String
+  metadata     Json     @default("{}")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // pgvector preparation: uncomment when extension is available
+  // embedding Unsupported("vector(1536)")?
+
+  clinic Clinic? @relation(fields: [clinicId], references: [id])
+
+  @@index([documentType, active])
+  @@index([clinicId, documentType, active])
+  @@map("knowledge_document")
+}
