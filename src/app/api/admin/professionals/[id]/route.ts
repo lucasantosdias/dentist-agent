@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/server/db/prisma";
 
-type RouteContext = { params: Promise<{ professionalId: string }> };
+type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(
   request: NextRequest,
   context: RouteContext,
 ): Promise<NextResponse> {
   try {
-    const { professionalId } = await context.params;
+    const { id: professionalId } = await context.params;
     const body = await request.json();
     const {
       display_name: snakeDisplayName, displayName: camelDisplayName,
@@ -37,7 +37,7 @@ export async function PATCH(
     }
 
     // Update professional fields
-    const updated = await prisma.professional.update({
+    await prisma.professional.update({
       where: { id: professionalId },
       data: {
         ...(displayName !== undefined && { displayName }),
@@ -45,9 +45,6 @@ export async function PATCH(
         ...(phone !== undefined && { phone }),
         ...(timezone !== undefined && { timezone }),
         ...(active !== undefined && { active }),
-      },
-      include: {
-        professionalSpecialties: { include: { specialty: true } },
       },
     });
 
