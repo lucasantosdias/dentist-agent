@@ -166,11 +166,12 @@ describe("LookupAvailabilityUseCase", () => {
         now,
       });
 
-      expect(result.availability).toHaveLength(2);
-      // Sorted by earliest: Dr. João (March 21) before Dra. Ana (March 22)
+      // Forward search finds the FIRST day with availability (March 21)
+      // Only prof-2 has slots on March 21; prof-1 has slots on March 22 but
+      // the search stops at the first available day.
+      expect(result.availability).toHaveLength(1);
       expect(result.availability[0].professionalName).toBe("Dr. João");
-      expect(result.availability[1].professionalName).toBe("Dra. Ana");
-      expect(result.searchedDate).toBeNull();
+      expect(result.searchedDate).not.toBeNull();
     });
 
     it("skips professionals with no availability in forward search window", async () => {
@@ -224,6 +225,31 @@ describe("LookupAvailabilityUseCase", () => {
 
       expect(result.availability).toHaveLength(0);
       expect(proposeSlotsUseCase.execute).not.toHaveBeenCalled();
+    });
+
+    it("filters by professionalId when provided", async () => {
+      const tomorrow = makeDate(21, 0);
+      const { useCase } = buildMocks({
+        "prof-1": [
+          { startsAt: makeDate(21, 8), endsAt: makeDate(21, 8, 30) },
+        ],
+        "prof-2": [
+          { startsAt: makeDate(21, 14), endsAt: makeDate(21, 14, 30) },
+        ],
+      });
+
+      const result = await useCase.execute({
+        clinicId: "clinic-1",
+        serviceId: "svc-1",
+        serviceDurationMin: 30,
+        targetDate: tomorrow,
+        now,
+        professionalId: "prof-1",
+      });
+
+      // Only prof-1 slots should be returned
+      expect(result.availability).toHaveLength(1);
+      expect(result.availability[0].professionalId).toBe("prof-1");
     });
 
     it("respects maxSlotsPerProfessional", async () => {

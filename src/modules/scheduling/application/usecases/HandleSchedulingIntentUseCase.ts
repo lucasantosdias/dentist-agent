@@ -7,27 +7,7 @@ import { StartSchedulingUseCase } from "@/modules/scheduling/application/usecase
 import { LookupAvailabilityUseCase } from "@/modules/scheduling/application/usecases/LookupAvailabilityUseCase";
 import type { ProfessionalAvailability } from "@/modules/scheduling/application/usecases/LookupAvailabilityUseCase";
 import type { SchedulingPolicies } from "@/modules/scheduling/domain/SchedulingPolicies";
-import { toIsoWithTimezone } from "@/shared/time";
-
-function pickRandom(options: readonly string[]): string {
-  return options[Math.floor(Math.random() * options.length)];
-}
-
-const AVAILABILITY_CLOSINGS = [
-  "Algum desses horários funciona pra você?",
-  "Qual fica melhor pra você?",
-  "Alguma dessas opções te atende?",
-  "Quer que eu reserve algum desses?",
-  "Tem algum que te interessa?",
-  "Qual você prefere?",
-  "Te atende algum desses?",
-] as const;
-
-const NO_AVAILABILITY_CLOSINGS = [
-  "Quer que eu procure em outro dia?",
-  "Posso buscar em outra data, se preferir.",
-  "Quer tentar outro dia?",
-] as const;
+import { formatDateTimePtBr } from "@/shared/time";
 
 export type HandleSchedulingInput = {
   clinic_id: string;
@@ -39,7 +19,10 @@ export type HandleSchedulingInput = {
 };
 
 export type HandleSchedulingResult = {
-  reply_text: string;
+  goal: string;
+  facts: string[];
+  constraints: string[];
+  missing_fields: string[];
   conversation_state: "AUTO" | "WAITING";
   appointment?: {
     id: string;
@@ -89,14 +72,21 @@ export class HandleSchedulingIntentUseCase {
     });
 
     if (start.missing.length > 0) {
-      // ── NEW: Consolidated availability lookup ──
-      // When service is known, skip asking for professional/datetime individually.
-      // Instead, look up real availability and present it.
-      if (start.normalized.service) {
+      const missingWithoutProfessional = start.missing.filter((f) => f !== "professional_name");
+      const onlyMissingProfessional = missingWithoutProfessional.length === 0
+        && start.missing.includes("professional_name");
+
+      if (onlyMissingProfessional && start.normalized.service && start.normalized.starts_at) {
+        return this.autoAssignAndHold(input, start);
+      }
+
+      // Consolidated availability lookup when service is known but datetime is not
+      if (start.normalized.service && !start.normalized.starts_at) {
         const availabilityResult = await this.tryConsolidatedAvailability(
           input,
           start.normalized.service,
           start.normalized.target_date,
+          start.normalized.professional?.id ?? null,
         );
         if (availabilityResult) {
           return {
@@ -106,17 +96,15 @@ export class HandleSchedulingIntentUseCase {
         }
       }
 
-      // Fallback: ask for remaining missing fields
-      const ask = this.buildMissingQuestion({
+      // Ask for remaining missing fields
+      const result = this.buildMissingFieldResult({
         missing: start.missing,
         isUrgent,
         serviceName: start.normalized.service?.name ?? null,
-        professionalName: start.normalized.professional?.name ?? null,
         diagnostics: start.diagnostics,
       });
       return {
-        reply_text: ask,
-        conversation_state: "AUTO",
+        ...result,
         patient_name_captured: start.normalized.full_name ?? undefined,
       };
     }
@@ -136,7 +124,10 @@ export class HandleSchedulingIntentUseCase {
 
     if (slots.length === 0) {
       return {
-        reply_text: "Puxa, não encontrei horários disponíveis nesse período. Quer que eu procure em outro dia?",
+        goal: "no_slots_available",
+        facts: ["Não foram encontrados horários disponíveis nesse período."],
+        constraints: ["Não invente horários."],
+        missing_fields: ["datetime_iso"],
         conversation_state: "AUTO",
         patient_name_captured: fullName,
       };
@@ -156,35 +147,38 @@ export class HandleSchedulingIntentUseCase {
 
     if (!hold.ok) {
       return {
-        reply_text: "Esse horário acabou de ser ocupado. Posso buscar outro?",
+        goal: "slot_taken",
+        facts: ["O horário solicitado acabou de ser ocupado."],
+        constraints: [],
+        missing_fields: ["datetime_iso"],
         conversation_state: "AUTO",
         patient_name_captured: fullName,
       };
     }
 
+    const ttl = this.schedulingPolicies.holdTtlMinutes;
     return {
-      reply_text:
-        `Reservei o horário de ${this.formatTimeOnly(selected.startsAt)} pra ${service.name}. ` +
-        `Pra confirmar, é só responder CONFIRMO. A reserva vale por 10 minutos.`,
+      goal: "hold_created_awaiting_confirmation",
+      facts: [
+        `Horário reservado: ${this.formatTimeOnly(selected.startsAt)} para ${service.name}.`,
+        `O paciente deve responder CONFIRMO para finalizar. A reserva vale por ${ttl} minutos.`,
+      ],
+      constraints: [
+        "NÃO confirme o agendamento — apenas informe a reserva e peça confirmação.",
+        "Mencione que o paciente deve responder CONFIRMO.",
+      ],
+      missing_fields: [],
       conversation_state: "WAITING",
       patient_name_captured: fullName,
     };
   }
 
-  /**
-   * Consolidated availability lookup.
-   *
-   * Triggered when the service is known but professional/datetime are not yet selected.
-   * Queries real availability and presents a combined view.
-   *
-   * Returns null if the service is known but the system should still ask individual
-   * questions (e.g., when only a diagnostic error needs clarification).
-   */
   private async tryConsolidatedAvailability(
     input: HandleSchedulingInput,
     service: { id: string; name: string; durationMin: number },
     targetDate: Date | null,
-  ): Promise<Pick<HandleSchedulingResult, "reply_text" | "conversation_state"> | null> {
+    professionalId: string | null,
+  ): Promise<Pick<HandleSchedulingResult, "goal" | "facts" | "constraints" | "missing_fields" | "conversation_state"> | null> {
     const result = await this.lookupAvailability.execute({
       clinicId: input.clinic_id,
       serviceId: service.id,
@@ -192,96 +186,74 @@ export class HandleSchedulingIntentUseCase {
       targetDate,
       now: input.now,
       maxSlotsPerProfessional: 3,
+      ...(professionalId ? { professionalId } : {}),
     });
 
     if (result.availability.length === 0) {
       if (targetDate) {
         return {
-          reply_text:
-            `Puxa, não encontrei horários disponíveis pra ${service.name} nesse dia. ` +
-            pickRandom(NO_AVAILABILITY_CLOSINGS),
+          goal: "no_slots_on_date",
+          facts: [`Não há horários disponíveis para ${service.name} nessa data.`],
+          constraints: ["Não invente horários."],
+          missing_fields: ["datetime_iso"],
           conversation_state: "AUTO",
         };
       }
       return {
-        reply_text:
-          `No momento não encontrei horários disponíveis pra ${service.name} nos próximos dias. ` +
-          `Quer que eu te avise quando abrir uma vaga?`,
+        goal: "no_slots_upcoming",
+        facts: [`Não há horários disponíveis para ${service.name} nos próximos dias.`],
+        constraints: ["Não invente horários."],
+        missing_fields: [],
         conversation_state: "AUTO",
       };
     }
 
-    const text = this.formatAvailabilityResponse(service.name, result.availability, targetDate);
+    const displayDate = targetDate ?? result.searchedDate;
+    const slotLines = this.formatSlotLines(result.availability, displayDate);
+    const dateLabel = displayDate ? this.formatDateLabel(displayDate) : null;
+
     return {
-      reply_text: text,
+      goal: "offer_available_slots",
+      facts: [
+        dateLabel
+          ? `Horários disponíveis para ${service.name} ${dateLabel}:`
+          : `Horários disponíveis para ${service.name}:`,
+        ...slotLines,
+      ],
+      constraints: [
+        "Apresente os horários listados de forma clara.",
+        "Pergunte qual horário o paciente prefere.",
+        "NÃO invente horários além dos listados.",
+      ],
+      missing_fields: ["datetime_iso"],
       conversation_state: "AUTO",
     };
   }
 
-  /**
-   * Format availability as time-only slots (professional names hidden).
-   *
-   * The system merges slots from all professionals into a flat time list.
-   * Professional names are NOT shown during initial suggestion — they are
-   * revealed only at appointment confirmation.
-   */
-  private formatAvailabilityResponse(
-    serviceName: string,
+  private formatSlotLines(
     availability: ProfessionalAvailability[],
     targetDate: Date | null,
-  ): string {
-    // Merge all slots from all professionals into a flat list with internal tracking
-    type FlatSlot = { startsAt: Date; endsAt: Date; professionalId: string; professionalName: string };
+  ): string[] {
+    type FlatSlot = { startsAt: Date; professionalName: string };
     const allSlots: FlatSlot[] = [];
 
     for (const prof of availability) {
       for (const slot of prof.slots) {
-        allSlots.push({
-          startsAt: slot.startsAt,
-          endsAt: slot.endsAt,
-          professionalId: prof.professionalId,
-          professionalName: prof.professionalName,
-        });
+        allSlots.push({ startsAt: slot.startsAt, professionalName: prof.professionalName });
       }
     }
 
-    // Sort by time
     allSlots.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+    const displaySlots = allSlots.slice(0, 6);
 
-    // Deduplicate by time (if two professionals have the same slot, show it once)
-    const seen = new Set<number>();
-    const uniqueSlots = allSlots.filter((s) => {
-      const key = s.startsAt.getTime();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
+    return displaySlots.map((s) => {
+      const time = this.formatTimeOnly(s.startsAt);
+      const day = targetDate ? this.formatDateLabel(targetDate) : this.formatDateLabel(s.startsAt);
+      return `${s.professionalName} — ${day} às ${time}`;
     });
-
-    // Limit to a reasonable number of options
-    const displaySlots = uniqueSlots.slice(0, 5);
-
-    // Format as time-only (no professional names)
-    if (targetDate) {
-      // All slots are on the same day — show times only
-      const dateLabel = this.formatDateLabel(targetDate);
-      const times = displaySlots.map((s) => this.formatTimeOnly(s.startsAt)).join(", ");
-      return `Pra ${serviceName} ${dateLabel}, tenho horário às ${times}. ${pickRandom(AVAILABILITY_CLOSINGS)}`;
-    }
-
-    // Forward search — slots may be on different days
-    const timeDescriptions = displaySlots.map((s) =>
-      `${this.formatDateLabel(s.startsAt)} às ${this.formatTimeOnly(s.startsAt)}`,
-    );
-
-    if (timeDescriptions.length === 1) {
-      return `O horário mais próximo pra ${serviceName} é ${timeDescriptions[0]}. ${pickRandom(AVAILABILITY_CLOSINGS)}`;
-    }
-
-    return `Pra ${serviceName}, encontrei esses horários: ${timeDescriptions.join(", ")}. ${pickRandom(AVAILABILITY_CLOSINGS)}`;
   }
 
   private formatTimeOnly(date: Date): string {
-    // Convert to São Paulo local time
     const offset = this.schedulingPolicies.timezoneOffsetMinutes;
     const local = new Date(date.getTime() + offset * 60_000);
     const h = String(local.getUTCHours()).padStart(2, "0");
@@ -292,7 +264,6 @@ export class HandleSchedulingIntentUseCase {
   private formatDateLabel(date: Date): string {
     const offset = this.schedulingPolicies.timezoneOffsetMinutes;
     const local = new Date(date.getTime() + offset * 60_000);
-
     const now = new Date();
     const todayLocal = new Date(now.getTime() + offset * 60_000);
 
@@ -301,9 +272,7 @@ export class HandleSchedulingIntentUseCase {
     const targetMonth = local.getUTCMonth();
     const todayMonth = todayLocal.getUTCMonth();
 
-    if (targetDay === todayDay + 1 && targetMonth === todayMonth) {
-      return "amanhã";
-    }
+    if (targetDay === todayDay + 1 && targetMonth === todayMonth) return "amanhã";
 
     const weekdays = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
     const day = String(targetDay).padStart(2, "0");
@@ -311,11 +280,10 @@ export class HandleSchedulingIntentUseCase {
     return `${weekdays[local.getUTCDay()]} (${day}/${month})`;
   }
 
-  private buildMissingQuestion(input: {
+  private buildMissingFieldResult(input: {
     missing: string[];
     isUrgent: boolean;
     serviceName: string | null;
-    professionalName: string | null;
     diagnostics: {
       datetime_provided: boolean;
       datetime_invalid: boolean;
@@ -327,54 +295,139 @@ export class HandleSchedulingIntentUseCase {
       professional_invalid: boolean;
       professional_cannot_execute_service: boolean;
     };
-  }): string {
-    if (input.diagnostics.professional_cannot_execute_service || input.diagnostics.professional_invalid) {
-      // Professional issues are handled internally — don't expose to patient.
-      // Fall through to availability lookup which will auto-resolve.
-    }
+  }): Pick<HandleSchedulingResult, "goal" | "facts" | "constraints" | "missing_fields" | "conversation_state"> {
+    const facts: string[] = [];
+    const constraints: string[] = [];
 
     if (input.diagnostics.service_invalid) {
-      return "Não reconheci esse procedimento. Qual você gostaria de agendar?";
+      facts.push("O procedimento informado não foi reconhecido.");
+      return {
+        goal: "ask_missing_field:service_code",
+        facts,
+        constraints,
+        missing_fields: ["service_code"],
+        conversation_state: "AUTO",
+      };
     }
 
-    const { missing, isUrgent } = input;
-
-    if (missing.includes("service_code")) {
-      return isUrgent
-        ? "Entendi que pode ser urgente. Vou priorizar uma avaliação pra você."
-        : "Qual procedimento você gostaria de agendar?";
+    if (input.diagnostics.datetime_outside_working_hours) {
+      facts.push(`O horário solicitado está fora do expediente (${this.workingHoursText()}).`);
+      constraints.push("Mencione o horário de expediente.");
     }
 
-    if (missing.includes("datetime_iso")) {
-      if (input.diagnostics.datetime_outside_working_hours) {
-        return `Esse horário está fora do nosso expediente (${this.workingHoursText()}). Qual outro horário funciona pra você?`;
+    if (input.diagnostics.datetime_invalid && input.diagnostics.datetime_provided) {
+      facts.push("Não foi possível interpretar a data/hora informada.");
+    }
+
+    if (input.isUrgent) {
+      facts.push("O paciente indicou urgência.");
+    }
+
+    if (input.missing.includes("service_code")) {
+      return {
+        goal: input.isUrgent ? "urgent_ask_service" : "ask_missing_field:service_code",
+        facts,
+        constraints,
+        missing_fields: input.missing,
+        conversation_state: "AUTO",
+      };
+    }
+
+    return {
+      goal: `ask_missing_field:${input.missing[0]}`,
+      facts: [
+        ...facts,
+        ...(input.missing.includes("datetime_iso")
+          ? [`Expediente: ${this.workingHoursText()}.`]
+          : []),
+      ],
+      constraints,
+      missing_fields: input.missing,
+      conversation_state: "AUTO",
+    };
+  }
+
+  private async autoAssignAndHold(
+    input: HandleSchedulingInput,
+    start: { normalized: { full_name: string | null; service: { id: string; name: string; durationMin: number } | null; starts_at: Date | null; ends_at: Date | null }; missing: string[] },
+  ): Promise<HandleSchedulingResult> {
+    const service = start.normalized.service!;
+    const startsAt = start.normalized.starts_at!;
+    const endsAt = start.normalized.ends_at ?? new Date(startsAt.getTime() + service.durationMin * 60_000);
+
+    const allProfessionals = await this.catalogRepository.listActiveProfessionalsForService(
+      input.clinic_id,
+      service.id,
+    );
+
+    const mentionedProfName = input.interpretation.entities.professional_name;
+    const professionals = mentionedProfName
+      ? [
+          ...allProfessionals.filter((p) => p.name.toLowerCase().includes(mentionedProfName.toLowerCase())),
+          ...allProfessionals.filter((p) => !p.name.toLowerCase().includes(mentionedProfName.toLowerCase())),
+        ]
+      : allProfessionals;
+
+    for (const prof of professionals) {
+      const slots = await this.proposeSlotsUseCase.execute({
+        professionalId: prof.id,
+        serviceDurationMin: service.durationMin,
+        requestedStartsAt: startsAt,
+        now: input.now,
+        limit: 1,
+      });
+
+      const matchingSlot = slots.find((s) => s.startsAt.getTime() === startsAt.getTime());
+      if (!matchingSlot) continue;
+
+      const hold = await this.createHoldUseCase.execute({
+        clinic_id: input.clinic_id,
+        conversation_id: input.conversation_id,
+        patient_id: input.patient_id,
+        professional_id: prof.id,
+        service_id: service.id,
+        starts_at: matchingSlot.startsAt,
+        ends_at: matchingSlot.endsAt,
+        now: input.now,
+      });
+
+      if (hold.ok) {
+        const ttl = this.schedulingPolicies.holdTtlMinutes;
+        return {
+          goal: "hold_created_awaiting_confirmation",
+          facts: [
+            `Horário reservado: ${this.formatTimeOnly(matchingSlot.startsAt)} para ${service.name}.`,
+            `O paciente deve responder CONFIRMO para finalizar. A reserva vale por ${ttl} minutos.`,
+          ],
+          constraints: [
+            "NÃO confirme o agendamento — apenas informe a reserva e peça confirmação.",
+            "Mencione que o paciente deve responder CONFIRMO.",
+          ],
+          missing_fields: [],
+          conversation_state: "WAITING",
+          patient_name_captured: start.normalized.full_name ?? undefined,
+        };
       }
-      if (input.diagnostics.datetime_invalid && input.diagnostics.datetime_provided) {
-        return "Não consegui entender a data/hora. Pode informar de novo?";
-      }
-      return isUrgent
-        ? "Qual o primeiro horário que funciona pra você hoje?"
-        : `Qual data e horário funcionam pra você? Nosso expediente é das ${this.workingHoursText()}.`;
     }
 
-    if (missing.includes("full_name")) {
-      return isUrgent
-        ? "Pra agilizar, pode me dizer seu nome completo?"
-        : "Pra eu dar andamento, pode me informar seu nome completo?";
-    }
-
-    if (missing.includes("care_type")) {
-      return "Vai ser particular ou por convênio?";
-    }
-
-    return "Pode me passar mais detalhes pra continuar?";
+    return {
+      goal: "slot_taken",
+      facts: ["O horário solicitado foi ocupado."],
+      constraints: [],
+      missing_fields: ["datetime_iso"],
+      conversation_state: "AUTO",
+      patient_name_captured: start.normalized.full_name ?? undefined,
+    };
   }
 
   private async handleHoldConfirmation(input: HandleSchedulingInput): Promise<HandleSchedulingResult> {
     const fullName = input.interpretation.entities.full_name?.trim() || input.patient_known_name || null;
     if (!fullName) {
       return {
-        reply_text: "Pra finalizar, pode me dizer seu nome completo?",
+        goal: "ask_missing_field:full_name",
+        facts: ["Precisamos do nome completo para finalizar o agendamento."],
+        constraints: [],
+        missing_fields: ["full_name"],
         conversation_state: "AUTO",
       };
     }
@@ -390,27 +443,41 @@ export class HandleSchedulingIntentUseCase {
     if (!confirmed.ok) {
       if (confirmed.error === "NO_ACTIVE_HOLD" || confirmed.error === "HOLD_EXPIRED") {
         return {
-          reply_text: "A reserva expirou. Quer que eu busque novos horários?",
+          goal: "hold_expired",
+          facts: ["A reserva de horário expirou."],
+          constraints: [],
+          missing_fields: ["datetime_iso"],
           conversation_state: "AUTO",
           patient_name_captured: fullName,
         };
       }
       if (confirmed.error === "UNAVAILABLE") {
         return {
-          reply_text: "Esse horário foi ocupado. Vou procurar outras opções pra você.",
+          goal: "slot_taken",
+          facts: ["O horário reservado foi ocupado por outro paciente."],
+          constraints: [],
+          missing_fields: ["datetime_iso"],
           conversation_state: "AUTO",
           patient_name_captured: fullName,
         };
       }
       return {
-        reply_text: "Não consegui finalizar agora. Vamos tentar de novo?",
+        goal: "confirmation_error",
+        facts: ["Não foi possível finalizar o agendamento agora."],
+        constraints: [],
+        missing_fields: [],
         conversation_state: "AUTO",
         patient_name_captured: fullName,
       };
     }
 
     return {
-      reply_text: `Perfeito, tá confirmado! Seu atendimento ficou pra ${confirmed.value.starts_at.toLocaleString("pt-BR")} com ${confirmed.value.professional_name}. Te esperamos! 😊`,
+      goal: "appointment_confirmed",
+      facts: [
+        `Agendamento confirmado: ${formatDateTimePtBr(confirmed.value.starts_at)} com ${confirmed.value.professional_name}.`,
+      ],
+      constraints: [],
+      missing_fields: [],
       conversation_state: "AUTO",
       appointment: {
         id: confirmed.value.appointment_id,

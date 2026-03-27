@@ -29,6 +29,8 @@ export type LookupAvailabilityInput = {
   now: Date;
   maxSlotsPerProfessional?: number;
   maxForwardDays?: number;
+  /** When set, only show slots for this specific professional */
+  professionalId?: string;
 };
 
 export type LookupAvailabilityResult = {
@@ -44,10 +46,15 @@ export class LookupAvailabilityUseCase {
   ) {}
 
   async execute(input: LookupAvailabilityInput): Promise<LookupAvailabilityResult> {
-    const professionals = await this.catalogRepository.listActiveProfessionalsForService(
+    let professionals = await this.catalogRepository.listActiveProfessionalsForService(
       input.clinicId,
       input.serviceId,
     );
+
+    // Filter to a specific professional when requested
+    if (input.professionalId) {
+      professionals = professionals.filter((p) => p.id === input.professionalId);
+    }
 
     if (professionals.length === 0) {
       return { availability: [], searchedDate: null };
@@ -92,55 +99,55 @@ export class LookupAvailabilityUseCase {
     return { availability, searchedDate: input.targetDate };
   }
 
+  /**
+   * Forward search: find the NEXT DAY with availability, then show all
+   * slots on that day. This gives the patient real choices on a single
+   * date rather than scattered slots across different days.
+   *
+   * If no availability on tomorrow, keeps searching day-by-day forward.
+   */
   private async forwardSearch(
     professionals: Array<{ id: string; name: string }>,
     input: LookupAvailabilityInput,
     maxSlots: number,
   ): Promise<LookupAvailabilityResult> {
     const maxDays = input.maxForwardDays ?? 14;
-    const availability: ProfessionalAvailability[] = [];
 
-    // Start from tomorrow's working hour start
     const tomorrow = new Date(input.now);
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(this.policies.workingHourStart, 0, 0, 0);
 
-    // For each professional, find their earliest available slot within maxDays
-    for (const prof of professionals) {
-      let foundSlot: TimeSlot | null = null;
+    // Find the first day that has ANY availability
+    for (let dayOffset = 0; dayOffset < maxDays; dayOffset++) {
+      const searchDate = new Date(tomorrow);
+      searchDate.setDate(searchDate.getDate() + dayOffset);
 
-      for (let dayOffset = 0; dayOffset < maxDays; dayOffset++) {
-        const searchDate = new Date(tomorrow);
-        searchDate.setDate(searchDate.getDate() + dayOffset);
+      // Check all professionals for this day
+      const dayAvailability: ProfessionalAvailability[] = [];
 
+      for (const prof of professionals) {
         const slots = await this.proposeSlotsUseCase.execute({
           professionalId: prof.id,
           serviceDurationMin: input.serviceDurationMin,
           requestedStartsAt: searchDate,
           now: input.now,
-          limit: 1,
+          limit: maxSlots,
         });
 
         if (slots.length > 0) {
-          foundSlot = slots[0];
-          break;
+          dayAvailability.push({
+            professionalId: prof.id,
+            professionalName: prof.name,
+            slots,
+          });
         }
       }
 
-      if (foundSlot) {
-        availability.push({
-          professionalId: prof.id,
-          professionalName: prof.name,
-          slots: [foundSlot],
-        });
+      if (dayAvailability.length > 0) {
+        return { availability: dayAvailability, searchedDate: searchDate };
       }
     }
 
-    // Sort by earliest slot
-    availability.sort((a, b) =>
-      a.slots[0].startsAt.getTime() - b.slots[0].startsAt.getTime(),
-    );
-
-    return { availability, searchedDate: null };
+    return { availability: [], searchedDate: null };
   }
 }

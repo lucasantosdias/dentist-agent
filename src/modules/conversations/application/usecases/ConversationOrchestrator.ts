@@ -572,7 +572,7 @@ export class ConversationOrchestrator {
               missing_fields: bookingMissing,
             };
           } else if (needsDatetime && !hasActiveHold && !userAlreadySelectedSlot) {
-            // Proactive availability lookup
+            // Proactive availability lookup — forward all collected entities
             const scheduling = await this.schedulingIntentUseCase.execute({
               clinic_id: clinicId,
               patient_id: patient.id,
@@ -581,7 +581,11 @@ export class ConversationOrchestrator {
               interpretation: {
                 ...interpretation,
                 intent: "BOOK_APPOINTMENT" as LlmIntent,
-                entities: { ...interpretation.entities, service_code: mergedData.service_code as string },
+                entities: {
+                  ...interpretation.entities,
+                  service_code: mergedData.service_code as string,
+                  professional_name: mergedData.professional_name as string | undefined,
+                },
               },
               now: new Date(),
             });
