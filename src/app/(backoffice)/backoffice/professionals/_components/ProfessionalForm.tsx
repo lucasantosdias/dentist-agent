@@ -1,6 +1,7 @@
 "use client";
 
 import { Form, Input, Select, Checkbox, Divider, Typography } from "antd";
+import type { DividerProps } from "antd";
 
 const { Text } = Typography;
 
@@ -43,7 +44,7 @@ export function ProfessionalForm({ specialties, clinicServices }: ProfessionalFo
   return (
     <>
       {/* Basic Info */}
-      <Divider orientation="left" orientationMargin={0} style={{ marginTop: 0 }}>
+      <Divider orientation={"left" as DividerProps["orientation"]} orientationMargin={0} style={{ marginTop: 0 }}>
         <Text strong style={{ fontSize: 13, color: "#64748b" }}>
           Informacoes basicas
         </Text>
@@ -60,7 +61,7 @@ export function ProfessionalForm({ specialties, clinicServices }: ProfessionalFo
       </Form.Item>
 
       {/* Contact */}
-      <Divider orientation="left" orientationMargin={0}>
+      <Divider orientation={"left" as DividerProps["orientation"]} orientationMargin={0}>
         <Text strong style={{ fontSize: 13, color: "#64748b" }}>
           Contato
         </Text>
@@ -73,7 +74,7 @@ export function ProfessionalForm({ specialties, clinicServices }: ProfessionalFo
       </Form.Item>
 
       {/* Specialties & Services */}
-      <Divider orientation="left" orientationMargin={0}>
+      <Divider orientation={"left" as DividerProps["orientation"]} orientationMargin={0}>
         <Text strong style={{ fontSize: 13, color: "#64748b" }}>
           Especialidades e Servicos
         </Text>
@@ -111,7 +112,7 @@ export function ProfessionalForm({ specialties, clinicServices }: ProfessionalFo
       )}
 
       {/* Settings */}
-      <Divider orientation="left" orientationMargin={0}>
+      <Divider orientation={"left" as DividerProps["orientation"]} orientationMargin={0}>
         <Text strong style={{ fontSize: 13, color: "#64748b" }}>
           Configuracoes
         </Text>

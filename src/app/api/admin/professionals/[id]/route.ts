@@ -36,42 +36,42 @@ export async function PATCH(
       return NextResponse.json({ error: "Professional not found" }, { status: 404 });
     }
 
-    // Update professional fields
-    await prisma.professional.update({
-      where: { id: professionalId },
-      data: {
-        ...(displayName !== undefined && { displayName }),
-        ...(email !== undefined && { email }),
-        ...(phone !== undefined && { phone }),
-        ...(timezone !== undefined && { timezone }),
-        ...(active !== undefined && { active }),
-      },
-    });
-
-    // Update specialties if provided
-    if (specialtyIds !== undefined) {
-      await prisma.professionalSpecialty.deleteMany({
-        where: { professionalId },
+    // Update all fields atomically
+    await prisma.$transaction(async (tx) => {
+      await tx.professional.update({
+        where: { id: professionalId },
+        data: {
+          ...(displayName !== undefined && { displayName }),
+          ...(email !== undefined && { email }),
+          ...(phone !== undefined && { phone }),
+          ...(timezone !== undefined && { timezone }),
+          ...(active !== undefined && { active }),
+        },
       });
-      if (specialtyIds.length > 0) {
-        await prisma.professionalSpecialty.createMany({
-          data: specialtyIds.map((specialtyId) => ({
-            professionalId,
-            specialtyId,
-          })),
+
+      if (specialtyIds !== undefined) {
+        await tx.professionalSpecialty.deleteMany({
+          where: { professionalId },
+        });
+        if (specialtyIds.length > 0) {
+          await tx.professionalSpecialty.createMany({
+            data: specialtyIds.map((specialtyId) => ({
+              professionalId,
+              specialtyId,
+            })),
+          });
+        }
+      }
+
+      if (role !== undefined && clinicId) {
+        await tx.clinicProfessional.update({
+          where: {
+            clinicId_professionalId: { clinicId, professionalId },
+          },
+          data: { role: role === "CLINIC_MANAGER" ? "CLINIC_MANAGER" : "PROFESSIONAL" },
         });
       }
-    }
-
-    // Update clinic role if provided
-    if (role !== undefined && clinicId) {
-      await prisma.clinicProfessional.update({
-        where: {
-          clinicId_professionalId: { clinicId, professionalId },
-        },
-        data: { role: role === "CLINIC_MANAGER" ? "CLINIC_MANAGER" : "PROFESSIONAL" },
-      });
-    }
+    });
 
     // Re-fetch to get updated specialties
     const refreshed = await prisma.professional.findUnique({
