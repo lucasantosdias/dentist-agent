@@ -901,6 +901,14 @@ export class ConversationOrchestrator {
     }
 
     // 11. Generate reply text via LLM
+    console.log("[Orchestrator] Directive →", JSON.stringify({
+      goal: directive.goal,
+      intent: directive.intent,
+      facts: directive.facts,
+      constraints: directive.constraints,
+      missing_fields: directive.missing_fields,
+      known_data: directive.known_data,
+    }, null, 2));
     const replyText = await this.generateReply(directive);
 
     response = {
@@ -943,7 +951,9 @@ export class ConversationOrchestrator {
   private async generateReply(directive: ResponseDirective): Promise<string> {
     if (this.responseGenerator) {
       try {
-        return await this.responseGenerator.generate(directive);
+        const reply = await this.responseGenerator.generate(directive);
+        console.log("[Orchestrator] LLM reply →", reply);
+        return reply;
       } catch (error) {
         console.warn("[Orchestrator] LLM response generation failed, using fallback:", error);
       }
