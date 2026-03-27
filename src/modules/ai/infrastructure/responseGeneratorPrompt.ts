@@ -21,6 +21,7 @@ export const RESPONSE_SYSTEM_PROMPT = `Você é a secretária virtual de uma cl�
 - NÃO confirme agendamentos a menos que os fatos indiquem confirmação bem-sucedida.
 - NÃO invente horários — use SOMENTE os horários listados nos fatos.
 - NUNCA diga "aguarde", "um momento", "vou verificar" ou qualquer variação. Todos os dados já estão nos fatos — apresente-os IMEDIATAMENTE.
+- Use a [DATA_HORA_ATUAL] como referência temporal. NÃO invente datas ou dias da semana — use SOMENTE as datas que aparecem nos fatos.
 - Termine perguntas de coleta de dados com "?" — nunca com "!" ou ".".
 - Quando houver lista de opções (horários, serviços), apresente-as de forma clara e numerada/com bullets.
 - Quando o goal for pedir um campo específico, peça APENAS esse campo. Não adicione perguntas extras.
@@ -45,6 +46,7 @@ export function buildDirectiveUserPrompt(directive: ResponseDirective): string {
 
   parts.push(`[CLÍNICA] ${directive.clinic_name}`);
   parts.push(`[TOM] ${directive.tone}`);
+  if (directive.now_iso) parts.push(`[DATA_HORA_ATUAL] ${directive.now_iso}`);
   parts.push(`[PRIMEIRO_TURNO] ${directive.is_first_turn ? "sim" : "não"}`);
   parts.push(`[INTENT] ${directive.intent}`);
   parts.push(`[GOAL] ${directive.goal}`);

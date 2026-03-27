@@ -316,6 +316,7 @@ export class ConversationOrchestrator {
       bot_name: botName,
       patient_message: input.text,
       is_first_turn: isFirstTurn,
+      now_iso: new Date().toISOString(),
       signals: {
         has_greeting: signals.hasGreeting,
         greeting_type: signals.greetingReply,
@@ -707,6 +708,7 @@ export class ConversationOrchestrator {
             entities: {
               ...interpretation.entities,
               service_code: mergedData.service_code as string | undefined,
+              professional_name: mergedData.professional_name as string | undefined,
               datetime_iso: mergedData.datetime_iso as string | undefined,
             },
           },
