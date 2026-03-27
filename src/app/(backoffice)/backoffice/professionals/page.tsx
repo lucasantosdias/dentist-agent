@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Table,
   Button,
   Modal,
-  Drawer,
   Form,
   Input,
   Select,
@@ -14,28 +13,36 @@ import {
   App,
   Empty,
   Card,
-  Flex,
   Avatar,
+  Dropdown,
+  Typography,
 } from "antd";
 import {
   PlusOutlined,
-  ScheduleOutlined,
   ReloadOutlined,
-  TeamOutlined,
+  SearchOutlined,
+  MoreOutlined,
+  EditOutlined,
+  StopOutlined,
+  CheckCircleOutlined,
 } from "@ant-design/icons";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { StatusTag } from "@/components/ui/StatusTag";
+import { ProfessionalForm } from "./_components/ProfessionalForm";
+import { ProfessionalDrawer } from "./_components/ProfessionalDrawer";
 import { api } from "@/lib/api";
 import { useApi } from "@/hooks/useApi";
 import { useClinicContext } from "@/hooks/useClinicContext";
 import type { ColumnsType } from "antd/es/table";
 
+const { Text } = Typography;
+
 type Professional = {
   id: string;
   display_name: string;
-  specialty: string | null;
+  specialties: string[];
   email: string | null;
   phone: string | null;
   timezone: string;
@@ -43,28 +50,18 @@ type Professional = {
   role: string;
 };
 
-type AvailabilityRule = {
+type ClinicService = {
   id: string;
-  professional_id: string;
-  weekday: number;
-  start_time: string;
-  end_time: string;
-  slot_duration_minutes: number | null;
-  location_id: string | null;
+  code: string;
+  display_name: string;
+  duration_minutes: number;
 };
 
-const WEEKDAYS = [
-  { value: 0, label: "Domingo" },
-  { value: 1, label: "Segunda" },
-  { value: 2, label: "Terça" },
-  { value: 3, label: "Quarta" },
-  { value: 4, label: "Quinta" },
-  { value: 5, label: "Sexta" },
-  { value: 6, label: "Sábado" },
+const STATUS_OPTIONS = [
+  { value: "", label: "Todos" },
+  { value: "active", label: "Ativo" },
+  { value: "inactive", label: "Inativo" },
 ];
-
-const weekdayLabel = (day: number): string =>
-  WEEKDAYS.find((w) => w.value === day)?.label ?? String(day);
 
 export default function ProfessionalsPage() {
   const { message } = App.useApp();
@@ -75,58 +72,75 @@ export default function ProfessionalsPage() {
     error,
     refetch,
   } = useApi<Professional[]>(
-    activeClinicId ? `/api/admin/clinics/${activeClinicId}/professionals` : "",
+    activeClinicId
+      ? `/api/admin/clinics/${activeClinicId}/professionals`
+      : "",
   );
 
-  // Create modal state
+  // Clinic services and specialties
+  const [clinicServices, setClinicServices] = useState<ClinicService[]>([]);
+  const [specialties, setSpecialties] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+
+  useEffect(() => {
+    if (!activeClinicId) return;
+    api<ClinicService[]>(
+      `/api/admin/clinics/${activeClinicId}/services`,
+    )
+      .then(setClinicServices)
+      .catch(() => setClinicServices([]));
+    api<Array<{ id: string; name: string }>>(
+      `/api/admin/clinics/${activeClinicId}/specialties`,
+    )
+      .then(setSpecialties)
+      .catch(() => setSpecialties([]));
+  }, [activeClinicId]);
+
+  // Filters
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [specialtyFilter, setSpecialtyFilter] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!professionals) return [];
+    return professionals.filter((p) => {
+      const matchesSearch =
+        !search ||
+        p.display_name.toLowerCase().includes(search.toLowerCase()) ||
+        (p.email ?? "").toLowerCase().includes(search.toLowerCase()) ||
+        (p.phone ?? "").includes(search);
+      const matchesStatus =
+        !statusFilter ||
+        (statusFilter === "active" && p.active) ||
+        (statusFilter === "inactive" && !p.active);
+      const matchesSpecialty =
+        !specialtyFilter || p.specialties.includes(specialtyFilter);
+      return matchesSearch && matchesStatus && matchesSpecialty;
+    });
+  }, [professionals, search, statusFilter, specialtyFilter]);
+
+  // Create modal
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createForm] = Form.useForm();
 
-  // Drawer state
+  // Drawer
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedProfessional, setSelectedProfessional] =
     useState<Professional | null>(null);
-  const [rules, setRules] = useState<AvailabilityRule[]>([]);
-  const [rulesLoading, setRulesLoading] = useState(false);
-  const [addingRule, setAddingRule] = useState(false);
-  const [ruleFormVisible, setRuleFormVisible] = useState(false);
-  const [ruleForm] = Form.useForm();
 
-  // ── Fetch availability rules ──────────────────────────────────────────
-  const fetchRules = async (professionalId: string) => {
-    setRulesLoading(true);
-    try {
-      const data = await api<AvailabilityRule[]>(
-        `/api/admin/professionals/${professionalId}/availability-rules`,
-      );
-      setRules(data);
-    } catch {
-      message.error("Erro ao carregar regras de disponibilidade.");
-      setRules([]);
-    } finally {
-      setRulesLoading(false);
-    }
-  };
-
-  // ── Open drawer ───────────────────────────────────────────────────────
   const openDrawer = (professional: Professional) => {
     setSelectedProfessional(professional);
     setDrawerOpen(true);
-    setRuleFormVisible(false);
-    ruleForm.resetFields();
-    fetchRules(professional.id);
   };
 
   const closeDrawer = () => {
     setDrawerOpen(false);
     setSelectedProfessional(null);
-    setRules([]);
-    setRuleFormVisible(false);
-    ruleForm.resetFields();
   };
 
-  // ── Create professional ───────────────────────────────────────────────
+  // Create professional
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
@@ -135,9 +149,13 @@ export default function ProfessionalsPage() {
         method: "POST",
         body: {
           display_name: values.display_name,
+          specialty_ids: values.specialty_ids || [],
           email: values.email || undefined,
           phone: values.phone || undefined,
           timezone: values.timezone,
+          role: values.role || "PROFESSIONAL",
+          clinic_id: activeClinicId,
+          service_ids: values.service_ids || [],
         },
       });
       message.success("Profissional criado com sucesso!");
@@ -145,91 +163,117 @@ export default function ProfessionalsPage() {
       createForm.resetFields();
       refetch();
     } catch (err: unknown) {
-      const errorData = err && typeof err === "object" && "data" in err
-        ? (err as { data: { error?: string } }).data
-        : null;
-      message.error(
-        errorData?.error ?? "Erro ao criar profissional.",
-      );
+      const errorData =
+        err && typeof err === "object" && "data" in err
+          ? (err as { data: { error?: string } }).data
+          : null;
+      message.error(errorData?.error ?? "Erro ao criar profissional.");
     } finally {
       setCreating(false);
     }
   };
 
-  // ── Add availability rule ─────────────────────────────────────────────
-  const handleAddRule = async () => {
-    if (!selectedProfessional) return;
+  // Toggle active
+  const handleToggleActive = async (professional: Professional) => {
     try {
-      const values = await ruleForm.validateFields();
-
-      // Validate time format HH:mm
-      const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
-      if (!timeRegex.test(values.start_time)) {
-        message.error(
-          "Horário de início inválido. Use o formato HH:mm (ex: 08:00).",
-        );
-        return;
-      }
-      if (!timeRegex.test(values.end_time)) {
-        message.error(
-          "Horário de fim inválido. Use o formato HH:mm (ex: 17:00).",
-        );
-        return;
-      }
-      if (values.start_time >= values.end_time) {
-        message.error("O horário de início deve ser anterior ao horário de fim.");
-        return;
-      }
-
-      setAddingRule(true);
-      await api<AvailabilityRule>(
-        `/api/admin/professionals/${selectedProfessional.id}/availability-rules`,
-        {
-          method: "POST",
-          body: {
-            weekday: values.weekday,
-            start_time: values.start_time,
-            end_time: values.end_time,
-          },
-        },
+      await api(`/api/admin/professionals/${professional.id}`, {
+        method: "PATCH",
+        body: { active: !professional.active },
+      });
+      message.success(
+        professional.active
+          ? "Profissional desativado!"
+          : "Profissional ativado!",
       );
-      message.success("Regra adicionada com sucesso!");
-      ruleForm.resetFields();
-      setRuleFormVisible(false);
-      fetchRules(selectedProfessional.id);
-    } catch (err: unknown) {
-      const errorData = err && typeof err === "object" && "data" in err
-        ? (err as { data: { error?: string } }).data
-        : null;
-      message.error(
-        errorData?.error ?? "Erro ao adicionar regra.",
-      );
-    } finally {
-      setAddingRule(false);
+      refetch();
+    } catch {
+      message.error("Erro ao alterar status.");
     }
   };
 
-  // ── Table columns ─────────────────────────────────────────────────────
+  // Avatar initials helper
+  const getInitials = (name: string) =>
+    name
+      .split(" ")
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase();
+
+  // Unique specialties for filter dropdown
+  const specialtyOptions = useMemo(() => {
+    if (!professionals) return [];
+    const all = new Set(professionals.flatMap((p) => p.specialties));
+    return [
+      { value: "", label: "Todas" },
+      ...Array.from(all).map((s) => ({ value: s, label: s })),
+    ];
+  }, [professionals]);
+
+  // Table columns
   const columns: ColumnsType<Professional> = [
     {
-      title: "Nome",
-      dataIndex: "display_name",
-      key: "display_name",
+      title: "Profissional",
+      key: "name",
       ellipsis: true,
+      render: (_, record) => (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <Avatar
+            size={36}
+            style={{
+              background: "linear-gradient(135deg, #2563eb, #3b82f6)",
+              fontSize: 13,
+              fontWeight: 600,
+              flexShrink: 0,
+            }}
+          >
+            {getInitials(record.display_name)}
+          </Avatar>
+          <div style={{ minWidth: 0 }}>
+            <Text strong style={{ display: "block", fontSize: 14 }} ellipsis>
+              {record.display_name}
+            </Text>
+            {record.email && (
+              <Text
+                type="secondary"
+                style={{ fontSize: 12, display: "block" }}
+                ellipsis
+              >
+                {record.email}
+              </Text>
+            )}
+          </div>
+        </div>
+      ),
     },
     {
-      title: "Especialidade",
-      dataIndex: "specialty",
-      key: "specialty",
-      width: 140,
+      title: "Especialidades",
+      dataIndex: "specialties",
+      key: "specialties",
+      width: 200,
       responsive: ["md"],
-      render: (v: string | null) => v ?? <Tag>—</Tag>,
+      render: (v: string[]) =>
+        v.length > 0 ? (
+          v.map((s) => (
+            <Tag key={s} style={{ marginBottom: 2 }}>
+              {s}
+            </Tag>
+          ))
+        ) : (
+          <Text type="secondary">—</Text>
+        ),
     },
     {
       title: "Papel",
       dataIndex: "role",
       key: "role",
-      width: 130,
+      width: 120,
       responsive: ["lg"],
       render: (v: string) => (
         <Tag color={v === "CLINIC_MANAGER" ? "gold" : "blue"}>
@@ -238,25 +282,13 @@ export default function ProfessionalsPage() {
       ),
     },
     {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
-      ellipsis: true,
-      responsive: ["xl"],
-      render: (v: string | null) => v ?? <Tag>—</Tag>,
-    },
-    {
       title: "Telefone",
       dataIndex: "phone",
       key: "phone",
+      width: 160,
       responsive: ["lg"],
-      render: (v: string | null) => v ?? <Tag>—</Tag>,
-    },
-    {
-      title: "Fuso",
-      dataIndex: "timezone",
-      key: "timezone",
-      responsive: ["xl"],
+      render: (v: string | null) =>
+        v ? <Text>{v}</Text> : <Text type="secondary">—</Text>,
     },
     {
       title: "Status",
@@ -268,43 +300,44 @@ export default function ProfessionalsPage() {
       ),
     },
     {
-      title: "Ações",
+      title: "",
       key: "actions",
-      width: 140,
+      width: 48,
       render: (_, record) => (
-        <Button
-          type="link"
-          icon={<ScheduleOutlined />}
-          onClick={() => openDrawer(record)}
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: "edit",
+                icon: <EditOutlined />,
+                label: "Editar",
+                onClick: () => openDrawer(record),
+              },
+              {
+                key: "toggle",
+                icon: record.active ? (
+                  <StopOutlined />
+                ) : (
+                  <CheckCircleOutlined />
+                ),
+                label: record.active ? "Desativar" : "Ativar",
+                onClick: () => handleToggleActive(record),
+              },
+            ],
+          }}
+          trigger={["click"]}
         >
-          Ver Horários
-        </Button>
+          <Button
+            type="text"
+            icon={<MoreOutlined />}
+            style={{ width: 32, height: 32 }}
+          />
+        </Dropdown>
       ),
     },
   ];
 
-  // ── Rules table columns ───────────────────────────────────────────────
-  const ruleColumns: ColumnsType<AvailabilityRule> = [
-    {
-      title: "Dia da Semana",
-      dataIndex: "weekday",
-      key: "weekday",
-      render: (v: number) => weekdayLabel(v),
-      sorter: (a, b) => a.weekday - b.weekday,
-    },
-    {
-      title: "Início",
-      dataIndex: "start_time",
-      key: "start_time",
-    },
-    {
-      title: "Fim",
-      dataIndex: "end_time",
-      key: "end_time",
-    },
-  ];
-
-  // ── Render ────────────────────────────────────────────────────────────
+  // Render
   if (loading) return <LoadingState text="Carregando profissionais..." />;
   if (error)
     return (
@@ -319,7 +352,11 @@ export default function ProfessionalsPage() {
     <>
       <PageHeader
         title="Profissionais"
-        subtitle={activeClinic ? `${activeClinic.name} — Gerencie os profissionais e seus horários` : "Gerencie os profissionais e seus horários"}
+        subtitle={
+          activeClinic
+            ? `${activeClinic.name} — Gerencie os profissionais e seus horarios`
+            : "Gerencie os profissionais e seus horarios"
+        }
         actions={
           <Space>
             <Button icon={<ReloadOutlined />} onClick={refetch}>
@@ -339,6 +376,55 @@ export default function ProfessionalsPage() {
         }
       />
 
+      {/* Filters */}
+      <Card
+        style={{
+          borderRadius: 12,
+          border: "1px solid #e2e8f0",
+          marginBottom: 16,
+        }}
+        styles={{ body: { padding: "12px 16px" } }}
+      >
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
+          <Input
+            placeholder="Buscar por nome, email ou telefone..."
+            prefix={<SearchOutlined style={{ color: "#94a3b8" }} />}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            allowClear
+            style={{ maxWidth: 320, borderRadius: 8 }}
+          />
+          <Select
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={STATUS_OPTIONS}
+            style={{ width: 130 }}
+            placeholder="Status"
+          />
+          {specialtyOptions.length > 1 && (
+            <Select
+              value={specialtyFilter}
+              onChange={setSpecialtyFilter}
+              options={specialtyOptions}
+              style={{ width: 180 }}
+              placeholder="Especialidade"
+            />
+          )}
+          <Text type="secondary" style={{ fontSize: 13, marginLeft: "auto" }}>
+            {filtered.length}{" "}
+            {filtered.length === 1 ? "profissional" : "profissionais"}
+          </Text>
+        </div>
+      </Card>
+
+      {/* Table */}
       <Card
         style={{ borderRadius: 12, border: "1px solid #e2e8f0" }}
         styles={{ body: { padding: 0 } }}
@@ -346,14 +432,26 @@ export default function ProfessionalsPage() {
         <Table<Professional>
           rowKey="id"
           columns={columns}
-          dataSource={professionals ?? []}
-          pagination={{ pageSize: 10, showSizeChanger: false }}
+          dataSource={filtered}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            pageSizeOptions: ["10", "20", "50"],
+          }}
           scroll={{ x: 600 }}
-          locale={{ emptyText: <Empty description="Nenhum profissional cadastrado" /> }}
+          locale={{
+            emptyText: (
+              <Empty description="Nenhum profissional encontrado" />
+            ),
+          }}
+          onRow={(record) => ({
+            style: { cursor: "pointer" },
+            onClick: () => openDrawer(record),
+          })}
         />
       </Card>
 
-      {/* ── Create Professional Modal ──────────────────────────────────── */}
+      {/* Create Modal */}
       <Modal
         title="Novo Profissional"
         open={createOpen}
@@ -366,147 +464,45 @@ export default function ProfessionalsPage() {
         okText="Criar"
         cancelText="Cancelar"
         destroyOnClose
+        width={520}
       >
         <Form
           form={createForm}
           layout="vertical"
-          initialValues={{ timezone: "America/Sao_Paulo" }}
+          initialValues={{
+            timezone: "America/Sao_Paulo",
+            role: "PROFESSIONAL",
+          }}
         >
-          <Form.Item
-            name="display_name"
-            label="Nome"
-            rules={[{ required: true, message: "Nome é obrigatório" }]}
-          >
-            <Input placeholder="Dr. João Silva" />
-          </Form.Item>
-          <Form.Item name="email" label="Email">
-            <Input type="email" placeholder="joao@clinica.com" />
-          </Form.Item>
-          <Form.Item name="phone" label="Telefone">
-            <Input placeholder="+55 11 99999-9999" />
-          </Form.Item>
-          <Form.Item
-            name="timezone"
-            label="Fuso Horário"
-            rules={[{ required: true, message: "Fuso horário é obrigatório" }]}
-          >
-            <Input placeholder="America/Sao_Paulo" />
-          </Form.Item>
+          <ProfessionalForm
+            specialties={specialties}
+            clinicServices={clinicServices}
+          />
         </Form>
       </Modal>
 
-      {/* ── Availability Rules Drawer ──────────────────────────────────── */}
-      <Drawer
-        title={
-          selectedProfessional
-            ? `Horários — ${selectedProfessional.display_name}`
-            : "Horários"
-        }
+      {/* Detail Drawer */}
+      <ProfessionalDrawer
+        professional={selectedProfessional}
         open={drawerOpen}
         onClose={closeDrawer}
-        width={560}
-        extra={
-          <Space>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={() =>
-                selectedProfessional && fetchRules(selectedProfessional.id)
-              }
-              disabled={!selectedProfessional}
-            >
-              Atualizar
-            </Button>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => {
-                ruleForm.resetFields();
-                setRuleFormVisible(true);
-              }}
-            >
-              Adicionar Regra
-            </Button>
-          </Space>
-        }
-      >
-        {/* Add rule form */}
-        {ruleFormVisible && (
-          <div
-            style={{
-              marginBottom: 24,
-              padding: 16,
-              background: "#fafafa",
-              borderRadius: 8,
-              border: "1px solid #f0f0f0",
-            }}
-          >
-            <Form form={ruleForm} layout="vertical">
-              <Form.Item
-                name="weekday"
-                label="Dia da Semana"
-                rules={[
-                  { required: true, message: "Selecione o dia da semana" },
-                ]}
-              >
-                <Select
-                  placeholder="Selecione..."
-                  options={WEEKDAYS}
-                />
-              </Form.Item>
-              <Form.Item
-                name="start_time"
-                label="Horário de Início"
-                rules={[
-                  { required: true, message: "Horário de início é obrigatório" },
-                ]}
-              >
-                <Input placeholder="08:00" />
-              </Form.Item>
-              <Form.Item
-                name="end_time"
-                label="Horário de Fim"
-                rules={[
-                  { required: true, message: "Horário de fim é obrigatório" },
-                ]}
-              >
-                <Input placeholder="17:00" />
-              </Form.Item>
-              <Space>
-                <Button
-                  type="primary"
-                  onClick={handleAddRule}
-                  loading={addingRule}
-                >
-                  Salvar
-                </Button>
-                <Button
-                  onClick={() => {
-                    setRuleFormVisible(false);
-                    ruleForm.resetFields();
-                  }}
-                >
-                  Cancelar
-                </Button>
-              </Space>
-            </Form>
-          </div>
-        )}
-
-        {/* Rules table */}
-        <Table<AvailabilityRule>
-          rowKey="id"
-          columns={ruleColumns}
-          dataSource={rules}
-          loading={rulesLoading}
-          pagination={false}
-          size="small"
-          locale={{
-            emptyText: (
-              <Empty description="Nenhuma regra de disponibilidade cadastrada" />
-            ),
-          }}
-        />
-      </Drawer>
+        onUpdated={() => {
+          refetch();
+          if (selectedProfessional) {
+            api<Professional[]>(
+              `/api/admin/clinics/${activeClinicId}/professionals`,
+            ).then((data) => {
+              const updated = data.find(
+                (p) => p.id === selectedProfessional.id,
+              );
+              if (updated) setSelectedProfessional(updated);
+            }).catch(() => {});
+          }
+        }}
+        clinicId={activeClinicId ?? ""}
+        clinicServices={clinicServices}
+        specialties={specialties}
+      />
     </>
   );
 }
