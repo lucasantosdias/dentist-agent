@@ -221,7 +221,7 @@ export class HandleSchedulingIntentUseCase {
         ...slotLines,
       ],
       constraints: [
-        "Apresente os horários listados de forma clara.",
+        "Apresente TODOS os horários listados nos fatos — NÃO diga 'aguarde' ou 'vou verificar'.",
         "Pergunte qual horário o paciente prefere.",
         "NÃO invente horários além dos listados.",
       ],
