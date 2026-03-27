@@ -1,8 +1,9 @@
 /**
  * Scenario C — Known patient
  *
- * Flow rule: Known patients must not be asked for name again.
+ * Flow rule: Even known patients must confirm name and CPF for bookings.
  * Flow rule: Patient lookup must be executed per clinic.
+ * Flow rule: Patient state is preserved (not regressed).
  */
 import { OrchestratorTestHarness } from "../fixtures/OrchestratorTestHarness";
 import { buildKnownPatient } from "../factories/PatientFactory";
@@ -23,15 +24,12 @@ describe("Scenario C — Known patient", () => {
     harness.patientRepo.seed(knownPatient);
   });
 
-  it("recognizes known patient and does NOT ask for name", async () => {
-    const response = await harness.send("Quero marcar consulta");
+  it("asks for name even for known patients (booking requires explicit confirmation)", async () => {
+    await harness.send("Quero marcar consulta");
 
-    // Should NOT ask for name
     const conversation = await harness.getLatestConversation();
-    expect(conversation!.missingRequirements).not.toContain("full_name");
-
-    // Collected data should already have the name
-    expect(conversation!.collectedData.full_name).toBe("Lucas Silva");
+    // Booking always requires explicit name collection
+    expect(conversation!.missingRequirements).toContain("full_name");
 
     // Patient state should remain LEAD_QUALIFIED (not regressed)
     const patient = await harness.getPatient();
@@ -39,21 +37,20 @@ describe("Scenario C — Known patient", () => {
     expect(patient!.fullName).toBe("Lucas Silva");
   });
 
-  it("asks for care_type or service instead of name", async () => {
-    const response = await harness.send("Quero marcar consulta");
+  it("accepts name when provided and moves to next field", async () => {
+    await harness.send("Quero marcar consulta");
+    await harness.send("Meu nome é Lucas Silva");
 
-    // The reply should ask for care_type or service, not name
     const conversation = await harness.getLatestConversation();
-    const missingFields = conversation!.missingRequirements;
-    expect(missingFields.length).toBeGreaterThan(0);
-    expect(missingFields[0]).not.toBe("full_name");
+    expect(conversation!.collectedData.full_name).toBe("Lucas Silva");
+    expect(conversation!.missingRequirements).not.toContain("full_name");
   });
 
   it("works with 'Gostaria de agendar uma consulta' for known patient", async () => {
-    const response = await harness.send("Gostaria de agendar uma consulta");
+    await harness.send("Gostaria de agendar uma consulta");
 
     const conversation = await harness.getLatestConversation();
-    expect(conversation!.missingRequirements).not.toContain("full_name");
-    expect(conversation!.collectedData.full_name).toBe("Lucas Silva");
+    // Name must still be collected explicitly for booking
+    expect(conversation!.missingRequirements).toContain("full_name");
   });
 });

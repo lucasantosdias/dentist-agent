@@ -94,6 +94,7 @@ describe("Scenario F — Multi-turn conversation", () => {
   it("delegates to scheduling handler when all data is collected", async () => {
     await harness.send("Quero marcar consulta");
     await harness.send("Meu nome é Lucas");
+    await harness.send("123.456.789-00");
     await harness.send("É particular");
     await harness.send("Quero fazer uma limpeza");
     await harness.send("Quero com o Dr. João");
@@ -104,5 +105,27 @@ describe("Scenario F — Multi-turn conversation", () => {
     const schedulingInput = harness.schedulingHandler.lastInput;
     expect(schedulingInput).not.toBeNull();
     expect(schedulingInput!.clinic_id).toBe(harness.clinicId);
+  });
+
+  it("asks for name and CPF even when patient already has them in DB (returning patient)", async () => {
+    // Simulate a returning patient who already provided name + CPF in a prior session
+    const patient = await harness.getPatient() ?? (await harness.send("oi"), await harness.getPatient());
+    patient!.setFullName("Raquel Souza");
+    patient!.setCpf("12345678900");
+    await harness.patientRepo.save(patient!);
+
+    // Reset conversation so it starts fresh
+    harness.reset();
+    // Re-seed the patient with known data
+    harness.patientRepo.seed(patient!);
+
+    // New booking conversation — patient is "known" in DB
+    const r1 = await harness.send("Quero marcar uma limpeza", {
+      external_user_id: patient!.externalUserId,
+    });
+
+    const conv = await harness.getLatestConversation();
+    // Even though patient has name + CPF in DB, the system must still ask for them
+    expect(conv!.missingRequirements).toContain("full_name");
   });
 });

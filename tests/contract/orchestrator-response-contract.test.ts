@@ -36,7 +36,7 @@ describe("Orchestrator response contract", () => {
     const response = await harness.send("Quero marcar consulta");
 
     // Check for Portuguese words (basic heuristic)
-    const portugueseIndicators = ["nome", "qual", "você", "nosso", "posso", "ajudar", "olá", "bem-vindo"];
+    const portugueseIndicators = ["nome", "qual", "você", "nosso", "posso", "ajudar", "olá", "bem-vindo", "procedimentos", "disponíveis", "clínica"];
     const hasPortuguese = portugueseIndicators.some((word) =>
       response.reply_text.toLowerCase().includes(word),
     );
@@ -66,11 +66,14 @@ describe("Orchestrator response contract", () => {
     );
 
     harness.schedulingHandler.setResult({
-      reply_text: "Agendamento confirmado para 21/03/2026 às 10:00 com Dr. Pedro.",
+      goal: "appointment_confirmed",
+      facts: ["Agendamento confirmado para 21/03/2026 às 10:00 com Dr. Pedro."],
+      constraints: [],
+      missing_fields: [],
       conversation_state: "AUTO",
       appointment: {
         id: "appt-001",
-        status: "AGENDADA",
+        status: "CONFIRMED",
         starts_at: "2026-03-21T10:00:00-03:00",
         ends_at: "2026-03-21T10:30:00-03:00",
         professional_name: "Dr. Pedro",
@@ -80,6 +83,8 @@ describe("Orchestrator response contract", () => {
 
     // Provide all required data in steps
     await harness.send("Quero marcar consulta");
+    await harness.send("Meu nome é Lucas Silva");
+    await harness.send("123.456.789-00");
     await harness.send("É particular");
     await harness.send("Quero fazer uma limpeza");
     await harness.send("Quero com o Dr. João");

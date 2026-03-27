@@ -70,10 +70,10 @@ describe("Scenario G — Tenant isolation", () => {
     // Use same repo for clinic B (shared in-memory, but different clinicId)
     const harnessB = new OrchestratorTestHarness(CLINIC_B_ID, userId);
 
-    // Clinic A: known patient, should NOT ask for name
+    // Clinic A: known patient, but booking still requires explicit name
     const responseA = await harnessA.send("Quero marcar consulta");
     const convA = await harnessA.getLatestConversation();
-    expect(convA!.missingRequirements).not.toContain("full_name");
+    expect(convA!.missingRequirements).toContain("full_name");
 
     // Clinic B: unknown patient, SHOULD have full_name missing
     const responseB = await harnessB.send("Quero marcar consulta");
@@ -96,6 +96,8 @@ describe("Scenario G — Tenant isolation", () => {
     );
 
     await harness.send("Quero marcar consulta");
+    await harness.send("Meu nome é Lucas Silva");
+    await harness.send("123.456.789-00");
     await harness.send("É particular");
     await harness.send("Quero fazer uma limpeza");
     await harness.send("Quero com o Dr. João");
