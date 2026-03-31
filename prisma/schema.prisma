@@ -87,6 +87,57 @@ enum ClinicProfessionalRole {
   CLINIC_MANAGER
 }
 
+enum UserRole {
+  SUPERADMIN
+  ADMIN
+  PROFESSIONAL
+  ATTENDANT
+}
+
+enum PermissionScope {
+  OWN
+  ORG
+  ALL
+}
+
+// ─── Auth ───────────────────────────────────────────────────
+
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  email           String    @unique
+  passwordHash    String?   @map("password_hash")
+  name            String
+  role            UserRole
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  active          Boolean   @default(true)
+  professionalId  String?   @db.Uuid @map("professional_id")
+  inviteToken     String?   @map("invite_token")
+  inviteExpiresAt DateTime? @map("invite_expires_at")
+  resetToken      String?   @map("reset_token")
+  resetExpiresAt  DateTime? @map("reset_expires_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  professional Professional? @relation(fields: [professionalId], references: [id])
+
+  @@index([inviteToken])
+  @@index([resetToken])
+  @@index([professionalId])
+  @@map("user")
+}
+
+model Permission {
+  id        String          @id @default(uuid()) @db.Uuid
+  role      UserRole
+  resource  String
+  action    String
+  scope     PermissionScope
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  @@unique([role, resource, action])
+  @@map("permission")
+}
+
 // ─── Models ─────────────────────────────────────────────────
 
 model Clinic {
@@ -290,6 +341,7 @@ model Professional {
   availabilityExceptions    ProfessionalAvailabilityException[]
   calendarWatchChannels     CalendarWatchChannel[]
   calendarSyncStates        CalendarSyncState[]
+  users                     User[]
 
   @@index([active])
   @@map("professional")
