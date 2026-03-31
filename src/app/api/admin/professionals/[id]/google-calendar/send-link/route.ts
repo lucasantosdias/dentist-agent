@@ -17,6 +17,10 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
       return NextResponse.json({ error: "channel and oauth_url are required" }, { status: 400 });
     }
 
+    if (!oauth_url.startsWith("https://accounts.google.com/o/oauth2/")) {
+      return NextResponse.json({ error: "Invalid OAuth URL" }, { status: 400 });
+    }
+
     if (channel !== "email" && channel !== "whatsapp") {
       return NextResponse.json({ error: "channel must be 'email' or 'whatsapp'" }, { status: 400 });
     }

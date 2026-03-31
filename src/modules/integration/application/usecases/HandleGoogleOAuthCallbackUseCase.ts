@@ -3,7 +3,7 @@ import type { ConnectGoogleCalendarUseCase } from "@/modules/integration/applica
 import type { CatalogRepositoryPort } from "@/modules/catalog/application/ports/CatalogRepositoryPort";
 import type { Result } from "@/shared/result";
 import { ok, fail } from "@/shared/result";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 
 export type CallbackInput = {
   code: string;
@@ -83,7 +83,11 @@ export class HandleGoogleOAuthCallbackUseCase {
       .update(Buffer.from(encoded, "base64url").toString())
       .digest("hex");
 
-    if (signature !== expectedSignature) return fail("INVALID_STATE");
+    const sigBuffer = Buffer.from(signature, "hex");
+    const expectedBuffer = Buffer.from(expectedSignature, "hex");
+    if (sigBuffer.length !== expectedBuffer.length || !timingSafeEqual(sigBuffer, expectedBuffer)) {
+      return fail("INVALID_STATE");
+    }
 
     try {
       const payload = JSON.parse(Buffer.from(encoded, "base64url").toString()) as {
