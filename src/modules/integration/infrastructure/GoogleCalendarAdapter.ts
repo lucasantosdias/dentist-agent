@@ -220,6 +220,39 @@ export class GoogleCalendarAdapter implements GoogleCalendarPort {
     };
   }
 
+  async exchangeCodeForTokens(
+    code: string,
+    redirectUri: string,
+  ): Promise<{ accessToken: string; refreshToken: string; expiresAt: Date }> {
+    const response = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: this.config.clientId,
+        client_secret: this.config.clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code",
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Google token exchange failed: ${response.status} ${await response.text()}`);
+    }
+
+    const data = await response.json() as {
+      access_token: string;
+      refresh_token: string;
+      expires_in: number;
+    };
+
+    return {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt: new Date(Date.now() + data.expires_in * 1000),
+    };
+  }
+
   private headers(accessToken: string): Record<string, string> {
     return {
       Authorization: `Bearer ${accessToken}`,

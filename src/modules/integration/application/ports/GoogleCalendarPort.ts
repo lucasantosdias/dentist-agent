@@ -75,4 +75,9 @@ export interface GoogleCalendarPort {
   refreshAccessToken(
     refreshToken: string,
   ): Promise<{ accessToken: string; expiresAt: Date }>;
+
+  exchangeCodeForTokens(
+    code: string,
+    redirectUri: string,
+  ): Promise<{ accessToken: string; refreshToken: string; expiresAt: Date }>;
 }
