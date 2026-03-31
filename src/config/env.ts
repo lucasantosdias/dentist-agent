@@ -36,6 +36,10 @@ const envSchema = z.object({
   GOOGLE_WEBHOOK_BASE_URL: z.string().optional().default(""),
   GOOGLE_REDIRECT_URI: z.string().optional().default(""),
 
+  // Auth
+  NEXTAUTH_SECRET: z.string().min(1, "NEXTAUTH_SECRET is required"),
+  NEXTAUTH_URL: z.string().optional().default("http://localhost:3000"),
+
   // SMTP (optional — email notifications degrade to console log)
   SMTP_HOST: z.string().optional().default(""),
   SMTP_PORT: z.coerce.number().int().optional().default(587),
