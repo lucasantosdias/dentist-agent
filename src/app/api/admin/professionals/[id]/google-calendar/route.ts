@@ -56,3 +56,33 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+// DELETE /api/admin/professionals/:id/google-calendar — Disconnect Google Calendar
+export async function DELETE(_request: NextRequest, context: RouteContext): Promise<NextResponse> {
+  const { id: professionalId } = await context.params;
+
+  const container = getContainer();
+
+  if (!container.disconnectGoogleCalendarUseCase) {
+    return NextResponse.json(
+      { error: "Google Calendar integration is not configured." },
+      { status: 501 },
+    );
+  }
+
+  try {
+    const result = await container.disconnectGoogleCalendarUseCase.execute(professionalId);
+
+    if (!result.ok) {
+      return NextResponse.json({ error: "Disconnect failed" }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      cancelled_exceptions: result.value.cancelled,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
