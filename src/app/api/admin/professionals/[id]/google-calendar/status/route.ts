@@ -16,34 +16,39 @@ export async function GET(_request: NextRequest, context: RouteContext): Promise
       return NextResponse.json({ connected: false });
     }
 
+    // Get recent appointments for this professional, then find their outbox records
     const outboxRecords = await prisma.calendarOutbox.findMany({
       where: {
         appointment: { professionalId },
       },
       orderBy: { createdAt: "desc" },
       take: 10,
-      include: {
-        appointment: {
-          include: {
-            patient: { select: { knownName: true, fullName: true } },
-          },
-        },
-      },
     });
+
+    // Load appointment + patient info for each outbox record
+    const enriched = await Promise.all(
+      outboxRecords.map(async (r) => {
+        const appointment = await prisma.appointment.findUnique({
+          where: { id: r.appointmentId },
+          include: { patient: { select: { fullName: true } } },
+        });
+        return {
+          id: r.id,
+          action: r.action,
+          status: r.status,
+          created_at: r.createdAt.toISOString(),
+          appointment_id: r.appointmentId,
+          patient_name: appointment?.patient?.fullName ?? null,
+        };
+      }),
+    );
 
     return NextResponse.json({
       connected: true,
       google_calendar_id: connection.googleCalendarId,
       connected_at: connection.createdAt.toISOString(),
       last_sync_at: connection.lastSyncAt?.toISOString() ?? null,
-      outbox_history: outboxRecords.map((r) => ({
-        id: r.id,
-        action: r.action,
-        status: r.status,
-        created_at: r.createdAt.toISOString(),
-        appointment_id: r.appointmentId,
-        patient_name: r.appointment?.patient?.knownName ?? r.appointment?.patient?.fullName ?? null,
-      })),
+      outbox_history: enriched,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
