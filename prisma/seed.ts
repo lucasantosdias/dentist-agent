@@ -153,6 +153,16 @@ async function cleanup() {
   await prisma.conversation.deleteMany({ where: { clinicId: { in: ALL_CLINIC_IDS } } });
   await prisma.patient.deleteMany({ where: { clinicId: { in: ALL_CLINIC_IDS } } });
   await prisma.service.deleteMany({ where: { clinicId: { in: ALL_CLINIC_IDS } } });
+  // Delete professional_specialty links that reference specialties we're about to delete
+  const specialtyIds = (await prisma.specialty.findMany({
+    where: { clinicId: { in: ALL_CLINIC_IDS } },
+    select: { id: true },
+  })).map(s => s.id);
+  if (specialtyIds.length > 0) {
+    await prisma.professionalSpecialty.deleteMany({
+      where: { specialtyId: { in: specialtyIds } },
+    });
+  }
   await prisma.specialty.deleteMany({ where: { clinicId: { in: ALL_CLINIC_IDS } } });
   await prisma.clinicSettings.deleteMany({ where: { clinicId: { in: ALL_CLINIC_IDS } } });
   await prisma.insurancePlan.deleteMany({ where: { clinicId: { in: ALL_CLINIC_IDS } } });
