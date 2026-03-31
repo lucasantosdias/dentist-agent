@@ -29,4 +29,10 @@ export class PrismaCalendarSyncStateRepository implements CalendarSyncStateRepos
     });
     return toDomain(row);
   }
+
+  async deleteByProfessional(professionalId: string): Promise<void> {
+    await this.prisma.calendarSyncState.deleteMany({
+      where: { professionalId },
+    });
+  }
 }

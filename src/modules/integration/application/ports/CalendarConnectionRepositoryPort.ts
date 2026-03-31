@@ -13,4 +13,5 @@ export interface CalendarConnectionRepositoryPort {
   upsert(input: CreateCalendarConnectionInput): Promise<CalendarConnection>;
   save(connection: CalendarConnection): Promise<CalendarConnection>;
   findByProfessional(professionalId: string): Promise<CalendarConnection | null>;
+  deleteByProfessional(professionalId: string): Promise<void>;
 }

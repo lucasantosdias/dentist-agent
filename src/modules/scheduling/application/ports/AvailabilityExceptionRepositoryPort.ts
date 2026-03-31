@@ -22,4 +22,8 @@ export interface AvailabilityExceptionRepositoryPort {
     professionalId: string,
     externalEventId: string,
   ): Promise<AvailabilityException | null>;
+  cancelAllByProfessionalAndSource(
+    professionalId: string,
+    source: AvailabilityExceptionSource,
+  ): Promise<number>;
 }

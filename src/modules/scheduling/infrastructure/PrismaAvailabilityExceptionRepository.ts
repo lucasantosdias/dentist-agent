@@ -70,4 +70,15 @@ export class PrismaAvailabilityExceptionRepository implements AvailabilityExcept
     });
     return row ? toDomain(row) : null;
   }
+
+  async cancelAllByProfessionalAndSource(
+    professionalId: string,
+    source: AvailabilityExceptionSource,
+  ): Promise<number> {
+    const result = await this.prisma.professionalAvailabilityException.updateMany({
+      where: { professionalId, source, status: "ACTIVE" },
+      data: { status: "CANCELLED" },
+    });
+    return result.count;
+  }
 }

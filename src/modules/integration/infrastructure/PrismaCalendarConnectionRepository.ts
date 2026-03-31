@@ -68,4 +68,10 @@ export class PrismaCalendarConnectionRepository implements CalendarConnectionRep
     });
     return row ? toDomain(row) : null;
   }
+
+  async deleteByProfessional(professionalId: string): Promise<void> {
+    await this.prisma.professionalCalendarConnection.deleteMany({
+      where: { professionalId },
+    });
+  }
 }
