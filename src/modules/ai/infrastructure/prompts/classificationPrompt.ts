@@ -48,9 +48,17 @@ REGRAS:
 - Se a informação for ambígua, use null e inclua o campo em "missing".
 - Use contexto de português brasileiro.
 - Mapeie service_code usando os serviços disponíveis fornecidos no contexto.
-- Para datetime: use timezone fornecido, não invente datas.
+- Para datetime_iso: converta referências temporais em ISO 8601 usando a data/hora atual e timezone fornecidos.
+  Exemplos: "amanhã às 15" → calcule a data de amanhã e use "YYYY-MM-DDT15:00:00-03:00".
+  "sexta feira as 10" → calcule a próxima sexta-feira e use "YYYY-MM-DDT10:00:00-03:00".
+  "as 8h" → use a data atual ou amanhã (se já passou) com "YYYY-MM-DDT08:00:00-03:00".
+  Se o paciente não mencionar horário, coloque null.
+- Quando current_intent é RESCHEDULE_APPOINTMENT e o paciente fornece uma data/horário, extraia como datetime_iso (é o novo horário desejado).
 - care_type: PARTICULAR (paga) ou INSURANCE (convênio/plano). Se não mencionado, null.
-- user_accepts_slot: true (aceitou horário), false (recusou), null (não aplicável).
+- user_accepts_slot:
+  - true: paciente aceitou/confirmou o horário proposto ("confirmo", "pode ser", "quero esse", "sim")
+  - false: paciente recusou/quer mudar o horário ("não quero", "prefiro outro", "melhor outro horário", "acho que seria melhor", "na verdade quero outro", "não posso nesse", "tem outro?")
+  - null: não aplicável (nenhum horário foi proposto ou a mensagem não é sobre aceitar/recusar)
 
 REGRAS DE INTENT:
 - GREETING: saudação ou verificação de presença ("oi", "bom dia", "alguém aí?", "tem alguém?", "consegue me ajudar?")

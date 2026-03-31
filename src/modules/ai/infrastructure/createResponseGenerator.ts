@@ -1,18 +1,16 @@
 import type { ResponseGeneratorPort } from "@/modules/ai/application/ports/ResponseGeneratorPort";
 import { OllamaResponseGenerator } from "./OllamaResponseGenerator";
+import { OpenAiResponseGenerator } from "./OpenAiResponseGenerator";
 
 type CreateResponseGeneratorConfig = {
   provider: "ollama" | "openai" | "mock";
   ollamaBaseUrl?: string;
   ollamaModel?: string;
+  openAiApiKey?: string;
+  openAiModel?: string;
+  openAiBaseUrl?: string;
 };
 
-/**
- * Factory for response generator.
- *
- * Returns null when provider is "mock" — the orchestrator will
- * fall back to deterministic templates.
- */
 export function createResponseGenerator(
   config: CreateResponseGeneratorConfig,
 ): ResponseGeneratorPort | null {
@@ -20,12 +18,15 @@ export function createResponseGenerator(
     case "ollama":
       return new OllamaResponseGenerator({
         baseUrl: config.ollamaBaseUrl ?? "http://host.docker.internal:11434",
-        model: config.ollamaModel ?? "qwen2.5:7b-instruct",
+        model: config.ollamaModel ?? "qwen3:30b-a3b",
       });
 
-    // Future: OpenAI implementation
     case "openai":
-      return null;
+      return new OpenAiResponseGenerator({
+        apiKey: config.openAiApiKey ?? "",
+        model: config.openAiModel ?? "gpt-4o-mini",
+        baseUrl: config.openAiBaseUrl,
+      });
 
     case "mock":
       return null;

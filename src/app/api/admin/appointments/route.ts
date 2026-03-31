@@ -118,7 +118,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       serviceId: service.id,
       startsAt,
       endsAt,
-      status: "AGENDADA",
+      status: "CONFIRMED",
       createdBy: "ADMIN_API",
     });
 

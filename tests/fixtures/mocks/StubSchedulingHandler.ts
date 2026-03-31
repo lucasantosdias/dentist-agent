@@ -8,6 +8,9 @@ import type {
   ConfirmPresenceHandlerPort,
   ConfirmPresenceInput,
   ConfirmPresenceResult,
+  RescheduleHandlerPort,
+  RescheduleInput,
+  RescheduleResult,
   CatalogSnapshotPort,
   CatalogSnapshot,
 } from "@/modules/conversations/application/ports/IntentHandlerPorts";
@@ -16,7 +19,10 @@ import { defaultCatalog } from "../catalog";
 export class StubSchedulingHandler implements SchedulingIntentHandlerPort {
   public lastInput: SchedulingIntentInput | null = null;
   public result: SchedulingIntentResult = {
-    reply_text: "Reservei o horário para você. Responda CONFIRMO para finalizar.",
+    goal: "hold_created_awaiting_confirmation",
+    facts: ["Horário reservado. O paciente deve responder CONFIRMO para finalizar."],
+    constraints: ["NÃO confirme o agendamento — apenas informe a reserva e peça confirmação."],
+    missing_fields: [],
     conversation_state: "WAITING",
   };
 
@@ -47,6 +53,20 @@ export class StubConfirmPresenceHandler implements ConfirmPresenceHandlerPort {
   async execute(input: ConfirmPresenceInput): Promise<ConfirmPresenceResult> {
     this.lastInput = input;
     return this.result;
+  }
+}
+
+export class StubRescheduleHandler implements RescheduleHandlerPort {
+  public lastInput: RescheduleInput | null = null;
+  public result: RescheduleResult = { kind: "NO_APPOINTMENTS" };
+
+  async execute(input: RescheduleInput): Promise<RescheduleResult> {
+    this.lastInput = input;
+    return this.result;
+  }
+
+  setResult(result: RescheduleResult): void {
+    this.result = result;
   }
 }
 

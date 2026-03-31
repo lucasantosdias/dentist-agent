@@ -1,6 +1,5 @@
 import {
   detectConversationalSignals,
-  buildAcknowledgmentPrefix,
 } from "@/modules/conversations/domain/services/ConversationalSignals";
 
 const catalog = [
@@ -66,103 +65,5 @@ describe("detectConversationalSignals", () => {
       expect(signals.hasServiceMention).toBe(true);
       expect(signals.mentionedServiceName).toBe("Limpeza");
     });
-  });
-});
-
-describe("buildAcknowledgmentPrefix", () => {
-  it("builds greeting + service prefix on first turn", () => {
-    const signals = {
-      hasGreeting: true,
-      greetingReply: "Boa tarde!",
-      hasServiceMention: true,
-      mentionedServiceName: "Limpeza",
-      hasConcern: false,
-    };
-    const prefix = buildAcknowledgmentPrefix(signals, "BOOK_APPOINTMENT", 1);
-    expect(prefix).toBe("Boa tarde! Claro, vou te ajudar com o agendamento.");
-  });
-
-  it("builds greeting-only prefix when no service mentioned", () => {
-    const signals = {
-      hasGreeting: true,
-      greetingReply: "Bom dia!",
-      hasServiceMention: false,
-      mentionedServiceName: null,
-      hasConcern: false,
-    };
-    const prefix = buildAcknowledgmentPrefix(signals, "BOOK_APPOINTMENT", 1);
-    expect(prefix).toBe("Bom dia!");
-  });
-
-  it("returns null when primary intent is GREETING", () => {
-    const signals = {
-      hasGreeting: true,
-      greetingReply: "Oi!",
-      hasServiceMention: false,
-      mentionedServiceName: null,
-      hasConcern: false,
-    };
-    const prefix = buildAcknowledgmentPrefix(signals, "GREETING", 1);
-    expect(prefix).toBeNull();
-  });
-
-  it("returns null after first turn (attempts > 1)", () => {
-    const signals = {
-      hasGreeting: true,
-      greetingReply: "Boa tarde!",
-      hasServiceMention: true,
-      mentionedServiceName: "Limpeza",
-      hasConcern: false,
-    };
-    const prefix = buildAcknowledgmentPrefix(signals, "BOOK_APPOINTMENT", 2);
-    expect(prefix).toBeNull();
-  });
-
-  it("returns null when no greeting detected", () => {
-    const signals = {
-      hasGreeting: false,
-      greetingReply: null,
-      hasServiceMention: true,
-      mentionedServiceName: "Limpeza",
-      hasConcern: false,
-    };
-    const prefix = buildAcknowledgmentPrefix(signals, "BOOK_APPOINTMENT", 1);
-    expect(prefix).toBeNull();
-  });
-
-  it("builds empathetic prefix for PAIN_OR_URGENT_CASE", () => {
-    const signals = {
-      hasGreeting: true,
-      greetingReply: "Oi!",
-      hasServiceMention: false,
-      mentionedServiceName: null,
-      hasConcern: false,
-    };
-    const prefix = buildAcknowledgmentPrefix(signals, "PAIN_OR_URGENT_CASE", 1);
-    expect(prefix).toBe("Oi! Vou te ajudar com isso agora, fique tranquilo(a).");
-  });
-
-  it("returns greeting-only for SERVICE_INFO (handler already names service)", () => {
-    const signals = {
-      hasGreeting: true,
-      greetingReply: "Olá!",
-      hasServiceMention: true,
-      mentionedServiceName: "Limpeza",
-      hasConcern: false,
-    };
-    const prefix = buildAcknowledgmentPrefix(signals, "SERVICE_INFO", 1);
-    expect(prefix).toBe("Olá!");
-  });
-
-  it("returns null for TALK_TO_HUMAN (operational response)", () => {
-    const signals = {
-      hasGreeting: true,
-      greetingReply: "Oi!",
-      hasServiceMention: false,
-      mentionedServiceName: null,
-      hasConcern: false,
-    };
-    const prefix = buildAcknowledgmentPrefix(signals, "TALK_TO_HUMAN", 1);
-    expect(prefix).toBeNull();
   });
 });

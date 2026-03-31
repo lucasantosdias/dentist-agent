@@ -42,37 +42,38 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const repo = new PrismaCatalogRepository(prisma);
 
-    // Create the professional with specialties
-    const professional = await repo.createProfessional({
-      displayName,
-      specialtyIds: specialtyIds ?? [],
-      email: email ?? null,
-      phone: phone ?? null,
-      timezone: timezone ?? "America/Sao_Paulo",
-    });
+    // Atomic: create professional + clinic link + service links in a single transaction
+    const professional = await prisma.$transaction(async (tx) => {
+      const txRepo = new PrismaCatalogRepository(tx as typeof prisma);
 
-    // Link to clinic via ClinicProfessional
-    await prisma.clinicProfessional.upsert({
-      where: {
-        clinicId_professionalId: {
-          clinicId,
-          professionalId: professional.id,
+      const prof = await txRepo.createProfessional({
+        displayName,
+        specialtyIds: specialtyIds ?? [],
+        email: email ?? null,
+        phone: phone ?? null,
+        timezone: timezone ?? "America/Sao_Paulo",
+      });
+
+      await tx.clinicProfessional.upsert({
+        where: {
+          clinicId_professionalId: { clinicId, professionalId: prof.id },
         },
-      },
-      update: { active: true, role: role === "CLINIC_MANAGER" ? "CLINIC_MANAGER" : "PROFESSIONAL" },
-      create: {
-        clinicId,
-        professionalId: professional.id,
-        role: role === "CLINIC_MANAGER" ? "CLINIC_MANAGER" : "PROFESSIONAL",
-      },
-    });
+        update: { active: true, role: role === "CLINIC_MANAGER" ? "CLINIC_MANAGER" : "PROFESSIONAL" },
+        create: {
+          clinicId,
+          professionalId: prof.id,
+          role: role === "CLINIC_MANAGER" ? "CLINIC_MANAGER" : "PROFESSIONAL",
+        },
+      });
 
-    // Link services if provided
-    if (serviceIds?.length) {
-      for (const serviceId of serviceIds) {
-        await repo.addProfessionalService(professional.id, serviceId);
+      if (serviceIds?.length) {
+        for (const serviceId of serviceIds) {
+          await txRepo.addProfessionalService(prof.id, serviceId);
+        }
       }
-    }
+
+      return prof;
+    });
 
     return NextResponse.json({
       id: professional.id,

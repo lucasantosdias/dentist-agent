@@ -73,12 +73,15 @@ export class OllamaLlmInterpreter implements LlmInterpreterPort {
         }
 
         const data = (await response.json()) as OllamaChatResponse;
-        const content = data.message?.content;
+        const rawContent = data.message?.content;
 
-        if (!content) {
+        if (!rawContent) {
           console.warn("[LLM] Ollama returned empty content");
           continue;
         }
+
+        // Strip qwen3 <think> blocks before parsing JSON
+        const content = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 
         console.log("[LLM] Ollama raw response:", content.slice(0, 500));
 

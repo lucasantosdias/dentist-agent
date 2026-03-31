@@ -303,6 +303,7 @@ export default function ProfessionalsPage() {
       title: "",
       key: "actions",
       width: 48,
+      onCell: () => ({ onClick: (e: React.MouseEvent) => e.stopPropagation() }),
       render: (_, record) => (
         <Dropdown
           menu={{

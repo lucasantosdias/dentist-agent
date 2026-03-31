@@ -19,7 +19,7 @@ export class PrismaSchedulingAvailability implements SchedulingAvailabilityPort 
       this.prisma.appointment.count({
         where: {
           professionalId: input.professionalId,
-          status: { not: "CANCELADA" },
+          status: { notIn: ["CANCELLED", "RESCHEDULED"] },
           startsAt: { lt: input.endsAt },
           endsAt: { gt: input.startsAt },
         },

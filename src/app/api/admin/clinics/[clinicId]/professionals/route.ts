@@ -14,11 +14,13 @@ export async function GET(_request: Request, context: RouteContext): Promise<Nex
           select: {
             id: true,
             displayName: true,
-            specialty: true,
             email: true,
             phone: true,
             timezone: true,
             active: true,
+            professionalSpecialties: {
+              include: { specialty: { select: { name: true } } },
+            },
           },
         },
       },
@@ -28,7 +30,9 @@ export async function GET(_request: Request, context: RouteContext): Promise<Nex
       clinicProfessionals.map((cp) => ({
         id: cp.professional.id,
         display_name: cp.professional.displayName,
-        specialty: cp.professional.specialty,
+        specialties: cp.professional.professionalSpecialties.map(
+          (ps) => ps.specialty.name,
+        ),
         email: cp.professional.email,
         phone: cp.professional.phone,
         timezone: cp.professional.timezone,

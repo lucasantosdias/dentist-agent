@@ -3,6 +3,7 @@ import type { Service } from "@/modules/catalog/domain/Service";
 
 export type CreateProfessionalInput = {
   displayName: string;
+  specialtyIds?: string[];
   email?: string | null;
   phone?: string | null;
   timezone?: string;

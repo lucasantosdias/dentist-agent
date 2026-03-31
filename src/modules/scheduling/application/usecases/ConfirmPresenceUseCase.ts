@@ -3,6 +3,8 @@ import type { AppointmentRepositoryPort } from "@/modules/scheduling/application
 
 export type ConfirmPresenceInput = {
   patient_id: string;
+  /** Additional patient IDs to search (for cross-session identity resolution). */
+  all_patient_ids?: string[];
   requested_datetime_iso?: string | null;
   now: Date;
 };
@@ -49,9 +51,13 @@ export class ConfirmPresenceUseCase {
   ) {}
 
   async execute(input: ConfirmPresenceInput): Promise<ConfirmPresenceResult> {
-    const appointments = await this.appointmentRepository.listByPatientAndStatuses(
-      input.patient_id,
-      ["AGENDADA"],
+    const patientIds = input.all_patient_ids?.length
+      ? [...new Set(input.all_patient_ids)]
+      : [input.patient_id];
+
+    const appointments = await this.appointmentRepository.listByPatientIdsAndStatuses(
+      patientIds,
+      ["CONFIRMED"],
       input.now,
     );
 
@@ -91,7 +97,7 @@ export class ConfirmPresenceUseCase {
       };
     }
 
-    selected.confirmPresence();
+    selected.checkIn();
     const saved = await this.appointmentRepository.save(selected);
 
     const [service, professional] = await Promise.all([

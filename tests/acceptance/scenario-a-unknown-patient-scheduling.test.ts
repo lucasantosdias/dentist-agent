@@ -35,8 +35,9 @@ describe("Scenario A — Unknown patient wants to schedule", () => {
     expect(conversation!.currentIntent).toBe("BOOK_APPOINTMENT");
     expect(conversation!.collectedData.service_code).toBe("LIMPEZA");
 
-    // Service known → ask for name next
-    expect(response.reply_text.toLowerCase()).toContain("nome");
+    // Service known → next missing field is full_name
+    const conv2 = await harness.getLatestConversation();
+    expect(conv2!.missingRequirements).toContain("full_name");
   });
 
   it("'Gostaria de agendar uma consulta' (no service) → asks for service", async () => {

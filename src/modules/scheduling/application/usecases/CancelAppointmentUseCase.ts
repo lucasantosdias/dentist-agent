@@ -4,6 +4,8 @@ import type { AppointmentRepositoryPort } from "@/modules/scheduling/application
 
 export type CancelAppointmentInput = {
   patient_id: string;
+  /** Additional patient IDs to search (for cross-session identity resolution). */
+  all_patient_ids?: string[];
   requested_datetime_iso?: string | null;
   reason?: string | null;
   now: Date;
@@ -52,9 +54,14 @@ export class CancelAppointmentUseCase {
   ) {}
 
   async execute(input: CancelAppointmentInput): Promise<CancelAppointmentResult> {
-    const appointments = await this.appointmentRepository.listByPatientAndStatuses(
-      input.patient_id,
-      ["AGENDADA", "CONFIRMADA"],
+    // Use all known patient IDs for cross-session identity resolution
+    const patientIds = input.all_patient_ids?.length
+      ? [...new Set(input.all_patient_ids)]
+      : [input.patient_id];
+
+    const appointments = await this.appointmentRepository.listByPatientIdsAndStatuses(
+      patientIds,
+      ["PENDING", "CONFIRMED"],
       input.now,
     );
 

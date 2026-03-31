@@ -17,7 +17,7 @@ export function createLlmInterpreter(config: CreateLlmInterpreterConfig): LlmInt
     case "ollama":
       return new OllamaLlmInterpreter({
         baseUrl: config.ollamaBaseUrl ?? "http://host.docker.internal:11434",
-        model: config.ollamaModel ?? "qwen2.5:7b-instruct",
+        model: config.ollamaModel ?? "qwen3:30b-a3b",
       });
 
     case "openai":

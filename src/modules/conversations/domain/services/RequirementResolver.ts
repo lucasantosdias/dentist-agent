@@ -61,10 +61,9 @@ export function resolveMissingForBooking(collectedData: CollectedData): string[]
   const missing: string[] = [];
 
   if (!collectedData.full_name) missing.push("full_name");
+  if (!collectedData.cpf) missing.push("cpf");
   if (!collectedData.care_type) missing.push("care_type");
   if (!hasServiceOrReason(collectedData)) missing.push("service_code");
-  // professional_name is NOT required — the system auto-selects based on availability.
-  // The patient only chooses a time slot; the professional is revealed at confirmation.
   if (!collectedData.datetime_iso) missing.push("datetime_iso");
 
   return missing;

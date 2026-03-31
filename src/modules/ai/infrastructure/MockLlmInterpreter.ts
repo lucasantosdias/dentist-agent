@@ -63,7 +63,12 @@ function inferIntent(text: string, input: LlmInterpretationInput): LlmInterpreta
 
   // ── Layer 2: Cancellation / reschedule / confirmation ──
   if (n.includes("cancel")) return "CANCEL_APPOINTMENT";
-  if (n.includes("reagend") || n.includes("remarcar")) return "RESCHEDULE_APPOINTMENT";
+  if (
+    n.includes("reagend") || n.includes("remarcar") ||
+    n.includes("mudar meu horario") || n.includes("mudar minha consulta") ||
+    n.includes("trocar minha consulta") || n.includes("trocar meu horario") ||
+    n.includes("alterar meu horario") || n.includes("alterar minha consulta")
+  ) return "RESCHEDULE_APPOINTMENT";
   if (n.includes("confirmar presenca") || n.includes("confirmar presença")) return "CONFIRM_APPOINTMENT";
 
   // ── Layer 3: Service info (before booking/pain so "canal dói?" doesn't become PAIN) ──
@@ -122,7 +127,17 @@ function inferServiceCode(input: LlmInterpretationInput): string | null {
   const byCode = input.catalog.services.find((s) => text.includes(normalize(s.service_code)));
   if (byCode) return byCode.service_code;
   const byName = input.catalog.services.find((s) => text.includes(normalize(s.name)));
-  return byName?.service_code ?? null;
+  if (byName) return byName.service_code;
+
+  // Numeric selection: "1", "2" etc. — maps to catalog index when in booking flow
+  const trimmed = input.user_text.trim();
+  if (/^\d+$/.test(trimmed) && input.current_intent === "BOOK_APPOINTMENT") {
+    const index = Number(trimmed) - 1;
+    if (index >= 0 && index < input.catalog.services.length) {
+      return input.catalog.services[index].service_code;
+    }
+  }
+  return null;
 }
 
 function inferProfessionalName(input: LlmInterpretationInput): string | null {
@@ -132,10 +147,31 @@ function inferProfessionalName(input: LlmInterpretationInput): string | null {
 }
 
 function inferName(input: LlmInterpretationInput): string | null {
+  // Explicit name patterns
   const match = input.user_text.match(/(?:meu nome [eé]|me chamo|sou o|sou a)\s+(.+)/i);
   if (match?.[1]) {
     return match[1].trim().split(" ").slice(0, 5).join(" ").trim();
   }
+
+  // Context-aware: if the conversation is collecting name (transactional intent
+  // and full_name is not yet collected), treat a short capitalized message as
+  // a name response.
+  const nameCollectingIntents = new Set([
+    "BOOK_APPOINTMENT", "RESCHEDULE_APPOINTMENT", "CANCEL_APPOINTMENT", "CONFIRM_APPOINTMENT",
+  ]);
+  if (
+    nameCollectingIntents.has(input.current_intent ?? "") &&
+    !input.known_data.patient_name &&
+    !(input.collected_data as Record<string, unknown> | undefined)?.full_name
+  ) {
+    const text = input.user_text.trim();
+    // Check: 1-5 words, starts with uppercase, no booking/service keywords
+    const looksLikeName = /^[A-ZÀ-Ú][a-zà-ú]+(?:\s+[A-ZÀ-Ú][a-zà-ú]+){0,4}$/.test(text);
+    if (looksLikeName && text.length >= 3 && text.length <= 60) {
+      return text;
+    }
+  }
+
   return input.known_data.patient_name ?? null;
 }
 
@@ -165,11 +201,18 @@ function inferDatetimeIso(input: LlmInterpretationInput): string | null {
   const isoDirect = raw.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:[+-]\d{2}:\d{2}|Z)/);
   if (isoDirect) return isoDirect[0];
 
-  const hourMatch = n.match(/\b(\d{1,2})(?::(\d{2}))?\s*h\b/) || n.match(/\b(?:as|a)\s*(\d{1,2})(?::(\d{2}))\b/);
-  if (!hourMatch) return null;
+  // Handle "meio dia" / "meio-dia" → 12:00
+  const isMeioDia = /\bmeio[- ]?dia\b/.test(n);
+  const isMeiaNoite = /\bmeia[- ]?noite\b/.test(n);
 
-  const hour = Number(hourMatch[1]);
-  const minute = Number(hourMatch[2] ?? "0");
+  const hourMatch = n.match(/\b(\d{1,2})h(\d{2})\b/)  // "9h30", "14h00"
+    || n.match(/\b(\d{1,2})(?::(\d{2}))?\s*(?:h|hrs?)\b/)  // "9h", "14:30h"
+    || n.match(/\b(?:as|a)\s*(\d{1,2})(?::(\d{2}))?\b/)  // "as 15", "as 9:30"
+    || n.match(/\bpara\s*(?:as\s*)?(\d{1,2})(?::(\d{2}))?\b/);  // "para as 15", "para 9:30"
+  if (!hourMatch && !isMeioDia && !isMeiaNoite) return null;
+
+  const hour = isMeioDia ? 12 : isMeiaNoite ? 0 : Number(hourMatch![1]);
+  const minute = (isMeioDia || isMeiaNoite) ? 0 : Number(hourMatch![2] ?? "0");
   if (hour > 23 || minute > 59) return null;
 
   const now = new Date(input.now_iso);
@@ -190,6 +233,31 @@ function inferDatetimeIso(input: LlmInterpretationInput): string | null {
 
   base.setHours(hour, minute, 0, 0);
   return formatIsoMinus03(base);
+}
+
+/**
+ * Extract CPF from text. Matches formats: 123.456.789-00 or 12345678900
+ */
+function inferCpf(text: string): string | null {
+  const formatted = text.match(/\b(\d{3}[.\s]?\d{3}[.\s]?\d{3}[-.\s]?\d{2})\b/);
+  if (formatted) {
+    return formatted[1].replace(/\D/g, "");
+  }
+  // 11 consecutive digits
+  const raw = text.match(/\b(\d{11})\b/);
+  return raw ? raw[1] : null;
+}
+
+/**
+ * Extract birth date from text. Matches: dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy
+ */
+function inferBirthDate(text: string): string | null {
+  const match = text.match(/\b(\d{2})[/\-.](\d{2})[/\-.](\d{4})\b/);
+  if (!match) return null;
+  const [, day, month, year] = match;
+  const y = Number(year);
+  if (y < 1920 || y > 2020) return null;
+  return `${year}-${month}-${day}`;
 }
 
 function inferCareType(text: string): "PARTICULAR" | "INSURANCE" | null {
@@ -228,8 +296,16 @@ function inferStage(
 
 function detectUserAcceptsSlot(text: string): boolean | null {
   const n = normalize(text);
+  // Acceptance
   if (n.includes("confirmo") || n.includes("pode ser") || n.includes("esse horario")) return true;
-  if (n.includes("nao quero") || n.includes("outro horario")) return false;
+  // Rejection / change request
+  if (
+    n.includes("nao quero") || n.includes("nao posso") || n.includes("nao consigo") ||
+    n.includes("outro horario") || n.includes("outra hora") ||
+    n.includes("prefiro") || n.includes("melhor") ||
+    n.includes("acho que") || n.includes("na verdade") ||
+    n.includes("pensando bem") || n.includes("mudar") || n.includes("trocar")
+  ) return false;
   return null;
 }
 
@@ -239,6 +315,8 @@ export class MockLlmInterpreter implements LlmInterpreterPort {
 
     const entities: LlmInterpretation["entities"] = {
       full_name: inferName(input),
+      cpf: inferCpf(input.user_text),
+      birth_date: inferBirthDate(input.user_text),
       service_code: inferServiceCode(input),
       professional_name: inferProfessionalName(input),
       datetime_iso: inferDatetimeIso(input),

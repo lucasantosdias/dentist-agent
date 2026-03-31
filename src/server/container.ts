@@ -246,8 +246,9 @@ export function getContainer(): AppContainer {
       env.APP_TIMEZONE,
     );
 
-    const redirectUri = env.GOOGLE_REDIRECT_URI ||
-      `${env.GOOGLE_WEBHOOK_BASE_URL}/api/integrations/google-calendar/callback`;
+    const redirectUri = (env.GOOGLE_REDIRECT_URI ||
+      `${env.GOOGLE_WEBHOOK_BASE_URL}/api/integrations/google-calendar/callback`).trim();
+    console.log("[Container] Google OAuth redirect_uri:", redirectUri);
 
     initiateGoogleCalendarConnectionUseCase = new InitiateGoogleCalendarConnectionUseCase(
       catalogRepository,

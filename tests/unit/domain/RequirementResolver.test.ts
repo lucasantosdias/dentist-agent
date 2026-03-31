@@ -12,13 +12,13 @@ describe("RequirementResolver", () => {
   describe("resolveMissingForBooking", () => {
     it("returns all required fields when collected data is empty", () => {
       const missing = resolveMissingForBooking({});
-      // professional_name is NOT required — system auto-assigns from availability
-      expect(missing).toEqual(["full_name", "care_type", "service_code", "datetime_iso"]);
+      expect(missing).toEqual(["full_name", "cpf", "care_type", "service_code", "datetime_iso"]);
     });
 
     it("returns remaining fields when some data is collected", () => {
       const missing = resolveMissingForBooking({
         full_name: "Lucas",
+        cpf: "12345678900",
         care_type: "PARTICULAR",
       });
       expect(missing).toEqual(["service_code", "datetime_iso"]);
@@ -27,6 +27,7 @@ describe("RequirementResolver", () => {
     it("returns empty when all required fields are present", () => {
       const missing = resolveMissingForBooking({
         full_name: "Lucas",
+        cpf: "12345678900",
         care_type: "PARTICULAR",
         service_code: "LIMPEZA",
         datetime_iso: "2026-03-21T10:00:00-03:00",
@@ -37,6 +38,7 @@ describe("RequirementResolver", () => {
     it("accepts primary_reason as alternative to service_code", () => {
       const missing = resolveMissingForBooking({
         full_name: "Lucas",
+        cpf: "12345678900",
         care_type: "PARTICULAR",
         primary_reason: "dor de dente",
         datetime_iso: "2026-03-21T10:00:00-03:00",

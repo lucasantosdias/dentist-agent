@@ -30,23 +30,33 @@ function toService(row: {
   });
 }
 
-function toProfessional(row: {
+type ProfessionalRow = {
   id: string;
   displayName: string;
   email: string | null;
   phone: string | null;
   timezone: string;
   active: boolean;
-}): Professional {
+  professionalSpecialties?: Array<{ specialty: { name: string } }>;
+};
+
+function toProfessional(row: ProfessionalRow): Professional {
   return new Professional({
     id: row.id,
     displayName: row.displayName,
+    specialties: row.professionalSpecialties?.map((ps) => ps.specialty.name) ?? [],
     email: row.email,
     phone: row.phone,
     timezone: row.timezone,
     active: row.active,
   });
 }
+
+const professionalSpecialtiesInclude = {
+  professionalSpecialties: {
+    include: { specialty: { select: { name: true } } },
+  },
+} as const;
 
 export class PrismaCatalogRepository implements CatalogRepositoryPort {
   constructor(private readonly prisma: PrismaClient) {}
@@ -95,12 +105,16 @@ export class PrismaCatalogRepository implements CatalogRepositoryPort {
         displayName: { equals: name, mode: "insensitive" },
         clinicProfessionals: { some: { clinicId, active: true } },
       },
+      include: professionalSpecialtiesInclude,
     });
     return row ? toProfessional(row) : null;
   }
 
   async findProfessionalById(professionalId: string): Promise<Professional | null> {
-    const row = await this.prisma.professional.findUnique({ where: { id: professionalId } });
+    const row = await this.prisma.professional.findUnique({
+      where: { id: professionalId },
+      include: professionalSpecialtiesInclude,
+    });
     return row ? toProfessional(row) : null;
   }
 
@@ -110,6 +124,7 @@ export class PrismaCatalogRepository implements CatalogRepositoryPort {
         active: true,
         clinicProfessionals: { some: { clinicId, active: true } },
       },
+      include: professionalSpecialtiesInclude,
       orderBy: { displayName: "asc" },
     });
     return rows.map(toProfessional);
@@ -122,6 +137,7 @@ export class PrismaCatalogRepository implements CatalogRepositoryPort {
         clinicProfessionals: { some: { clinicId, active: true } },
         professionalServices: { some: { serviceId } },
       },
+      include: professionalSpecialtiesInclude,
       orderBy: { displayName: "asc" },
     });
     return rows.map(toProfessional);
@@ -143,7 +159,15 @@ export class PrismaCatalogRepository implements CatalogRepositoryPort {
         email: input.email ?? null,
         phone: input.phone ?? null,
         timezone: input.timezone ?? "America/Sao_Paulo",
+        ...(input.specialtyIds?.length
+          ? {
+              professionalSpecialties: {
+                create: input.specialtyIds.map((specialtyId) => ({ specialtyId })),
+              },
+            }
+          : {}),
       },
+      include: professionalSpecialtiesInclude,
     });
     return toProfessional(row);
   }

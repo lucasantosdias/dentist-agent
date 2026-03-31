@@ -80,7 +80,7 @@ export class ConfirmAppointmentUseCase {
       serviceId: hold.serviceId,
       startsAt: hold.startsAt,
       endsAt: hold.endsAt,
-      status: "AGENDADA",
+      status: "CONFIRMED",
       createdBy: "BOT",
     });
 

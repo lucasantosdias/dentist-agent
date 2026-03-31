@@ -60,6 +60,12 @@ const APT_C3_3 = '00000000-0000-0000-0005-000000000010';
 const APT_C3_4 = '00000000-0000-0000-0005-000000000011';
 const APT_C3_5 = '00000000-0000-0000-0005-000000000012';
 
+// Specialties
+const SPEC_CLINICA_GERAL  = '00000000-0000-0000-0007-000000000001';
+const SPEC_ORTODONTIA     = '00000000-0000-0000-0007-000000000002';
+const SPEC_IMPLANTODONTIA = '00000000-0000-0000-0007-000000000003';
+const SPEC_ENDODONTIA     = '00000000-0000-0000-0007-000000000004';
+
 // Availability rule ID generator (deterministic)
 function availRuleId(profIdx: number, weekday: number, slot: number): string {
   const num = String(profIdx * 100 + weekday * 10 + slot).padStart(12, '0');
@@ -124,16 +130,32 @@ async function cleanup() {
   console.log('Cleaning up existing seed data...');
 
   // Delete in FK-safe order (children first)
-  await prisma.appointment.deleteMany({ where: { id: { in: ALL_APPOINTMENT_IDS } } });
+  await prisma.calendarOutbox.deleteMany({ where: { appointment: { clinicId: { in: ALL_CLINIC_IDS } } } });
+  await prisma.slotHold.deleteMany({ where: { clinicId: { in: ALL_CLINIC_IDS } } });
+  await prisma.appointment.deleteMany({ where: { clinicId: { in: ALL_CLINIC_IDS } } });
   await prisma.professionalAvailabilityRule.deleteMany({ where: { id: { in: ALL_AVAIL_RULE_IDS } } });
   await prisma.professionalService.deleteMany({
+    where: {
+      OR: [
+        { professionalId: { in: ALL_PROFESSIONAL_IDS } },
+        { serviceId: { in: ALL_SERVICE_IDS } },
+      ],
+    },
+  });
+  await prisma.professionalSpecialty.deleteMany({
     where: { professionalId: { in: ALL_PROFESSIONAL_IDS } },
   });
   await prisma.clinicProfessional.deleteMany({
     where: { clinicId: { in: ALL_CLINIC_IDS } },
   });
-  await prisma.patient.deleteMany({ where: { id: { in: ALL_PATIENT_IDS } } });
-  await prisma.service.deleteMany({ where: { id: { in: ALL_SERVICE_IDS } } });
+  await prisma.message.deleteMany({ where: { conversation: { clinicId: { in: ALL_CLINIC_IDS } } } });
+  await prisma.processedInboundMessage.deleteMany({ where: { conversation: { clinicId: { in: ALL_CLINIC_IDS } } } });
+  await prisma.conversation.deleteMany({ where: { clinicId: { in: ALL_CLINIC_IDS } } });
+  await prisma.patient.deleteMany({ where: { clinicId: { in: ALL_CLINIC_IDS } } });
+  await prisma.service.deleteMany({ where: { clinicId: { in: ALL_CLINIC_IDS } } });
+  await prisma.specialty.deleteMany({ where: { clinicId: { in: ALL_CLINIC_IDS } } });
+  await prisma.clinicSettings.deleteMany({ where: { clinicId: { in: ALL_CLINIC_IDS } } });
+  await prisma.insurancePlan.deleteMany({ where: { clinicId: { in: ALL_CLINIC_IDS } } });
   await prisma.professional.deleteMany({ where: { id: { in: ALL_PROFESSIONAL_IDS } } });
   await prisma.clinic.deleteMany({ where: { id: { in: ALL_CLINIC_IDS } } });
 
@@ -177,27 +199,86 @@ async function seedClinics() {
   console.log(`  Created ${clinics.length} clinics.`);
 }
 
+async function seedSpecialties() {
+  console.log('Seeding specialties...');
+
+  // Shared specialties for all clinics
+  const clinics = [CLINIC_1, CLINIC_2, CLINIC_3];
+  const specialties = [
+    { id: SPEC_CLINICA_GERAL,  name: 'Clinica Geral' },
+    { id: SPEC_ORTODONTIA,     name: 'Ortodontia' },
+    { id: SPEC_IMPLANTODONTIA, name: 'Implantodontia' },
+    { id: SPEC_ENDODONTIA,     name: 'Endodontia' },
+  ];
+
+  let specIdx = 1;
+  for (const clinicId of clinics) {
+    for (const s of specialties) {
+      const id = `00000000-0000-0000-0007-${String(specIdx++).padStart(12, '0')}`;
+      await prisma.specialty.upsert({
+        where: { clinicId_name: { clinicId, name: s.name } },
+        update: {},
+        create: { id, clinicId, name: s.name },
+      });
+    }
+  }
+
+  console.log(`  Created specialties for ${clinics.length} clinics.`);
+}
+
 async function seedProfessionals() {
   console.log('Seeding professionals...');
 
   const professionals = [
-    { id: PROF_ANA,    displayName: 'Dra. Ana Souza',     specialty: 'Clinica Geral',  email: 'ana.souza@dentzi.com.br' },
-    { id: PROF_JOAO,   displayName: 'Dr. João Lima',      specialty: 'Clinica Geral',  email: 'joao.lima@dentzi.com.br' },
-    { id: PROF_BEA,    displayName: 'Dra. Beatriz Costa', specialty: 'Ortodontia',     email: 'beatriz.costa@dentzi.com.br' },
-    { id: PROF_RAFAEL, displayName: 'Dr. Rafael Mendes',  specialty: 'Ortodontia',     email: 'rafael.mendes@dentzi.com.br' },
-    { id: PROF_CAMILA, displayName: 'Dra. Camila Rocha',  specialty: 'Implantodontia', email: 'camila.rocha@odontoprime.com.br' },
-    { id: PROF_FELIPE, displayName: 'Dr. Felipe Martins', specialty: 'Endodontia',     email: 'felipe.martins@odontoprime.com.br' },
+    { id: PROF_ANA,    displayName: 'Dra. Ana Souza',     email: 'ana.souza@dentzi.com.br' },
+    { id: PROF_JOAO,   displayName: 'Dr. João Lima',      email: 'joao.lima@dentzi.com.br' },
+    { id: PROF_BEA,    displayName: 'Dra. Beatriz Costa', email: 'beatriz.costa@dentzi.com.br' },
+    { id: PROF_RAFAEL, displayName: 'Dr. Rafael Mendes',  email: 'rafael.mendes@dentzi.com.br' },
+    { id: PROF_CAMILA, displayName: 'Dra. Camila Rocha',  email: 'camila.rocha@odontoprime.com.br' },
+    { id: PROF_FELIPE, displayName: 'Dr. Felipe Martins', email: 'felipe.martins@odontoprime.com.br' },
   ];
 
   for (const p of professionals) {
     await prisma.professional.upsert({
       where: { id: p.id },
-      update: { displayName: p.displayName, specialty: p.specialty, email: p.email },
+      update: { displayName: p.displayName, email: p.email },
       create: p,
     });
   }
 
   console.log(`  Created ${professionals.length} professionals.`);
+}
+
+async function seedProfessionalSpecialties() {
+  console.log('Linking professionals to specialties...');
+
+  // Look up specialty IDs by name for each clinic's context
+  const specByName = await prisma.specialty.findMany({
+    where: { clinicId: CLINIC_1, active: true },
+  });
+  const specMap = Object.fromEntries(specByName.map((s) => [s.name, s.id]));
+
+  const links: Array<{ professionalId: string; specialtyIds: string[] }> = [
+    { professionalId: PROF_ANA,    specialtyIds: [specMap['Clinica Geral']] },
+    { professionalId: PROF_JOAO,   specialtyIds: [specMap['Clinica Geral']] },
+    { professionalId: PROF_BEA,    specialtyIds: [specMap['Ortodontia']] },
+    { professionalId: PROF_RAFAEL, specialtyIds: [specMap['Ortodontia'], specMap['Clinica Geral']] },
+    { professionalId: PROF_CAMILA, specialtyIds: [specMap['Implantodontia']] },
+    { professionalId: PROF_FELIPE, specialtyIds: [specMap['Endodontia']] },
+  ];
+
+  for (const { professionalId, specialtyIds } of links) {
+    for (const specialtyId of specialtyIds) {
+      if (!specialtyId) continue;
+      await prisma.professionalSpecialty.upsert({
+        where: { professionalId_specialtyId: { professionalId, specialtyId } },
+        create: { professionalId, specialtyId },
+        update: {},
+      });
+    }
+  }
+
+  console.log('  Linked professionals to specialties.');
 }
 
 async function seedClinicProfessionals() {
@@ -326,66 +407,66 @@ async function seedAppointments() {
     {
       id: APT_C1_1, clinicId: CLINIC_1, patientId: PAT_C1_1, professionalId: PROF_ANA,
       serviceId: SVC_C1_AVAL, startsAt: futureDate(1, 9, 0), endsAt: futureDate(1, 9, 30),
-      status: 'AGENDADA' as const, createdBy: 'SEED',
+      status: 'CONFIRMED' as const, createdBy: 'SEED',
     },
     {
       id: APT_C1_2, clinicId: CLINIC_1, patientId: PAT_C1_2, professionalId: PROF_ANA,
       serviceId: SVC_C1_LIMP, startsAt: futureDate(2, 10, 0), endsAt: futureDate(2, 10, 45),
-      status: 'CONFIRMADA' as const, createdBy: 'SEED',
+      status: 'CONFIRMED' as const, createdBy: 'SEED',
     },
     {
       id: APT_C1_3, clinicId: CLINIC_1, patientId: PAT_C1_3, professionalId: PROF_JOAO,
       serviceId: SVC_C1_CLAR, startsAt: futureDate(3, 14, 0), endsAt: futureDate(3, 15, 0),
-      status: 'AGENDADA' as const, createdBy: 'SEED',
+      status: 'CONFIRMED' as const, createdBy: 'SEED',
     },
     {
       id: APT_C1_4, clinicId: CLINIC_1, patientId: PAT_C1_4, professionalId: PROF_JOAO,
       serviceId: SVC_C1_AVAL, startsAt: futureDate(4, 8, 0), endsAt: futureDate(4, 8, 30),
-      status: 'CONFIRMADA' as const, createdBy: 'SEED',
+      status: 'CONFIRMED' as const, createdBy: 'SEED',
     },
 
     // Clinic 2 - 3 appointments
     {
       id: APT_C2_1, clinicId: CLINIC_2, patientId: PAT_C2_1, professionalId: PROF_BEA,
       serviceId: SVC_C2_AVAL, startsAt: futureDate(1, 11, 0), endsAt: futureDate(1, 11, 30),
-      status: 'CONFIRMADA' as const, createdBy: 'SEED',
+      status: 'CONFIRMED' as const, createdBy: 'SEED',
     },
     {
       id: APT_C2_2, clinicId: CLINIC_2, patientId: PAT_C2_2, professionalId: PROF_RAFAEL,
       serviceId: SVC_C2_ORTO, startsAt: futureDate(2, 14, 0), endsAt: futureDate(2, 14, 45),
-      status: 'AGENDADA' as const, createdBy: 'SEED',
+      status: 'CONFIRMED' as const, createdBy: 'SEED',
     },
     {
       id: APT_C2_3, clinicId: CLINIC_2, patientId: PAT_C2_3, professionalId: PROF_BEA,
       serviceId: SVC_C2_MANUT, startsAt: futureDate(5, 9, 0), endsAt: futureDate(5, 9, 30),
-      status: 'AGENDADA' as const, createdBy: 'SEED',
+      status: 'CONFIRMED' as const, createdBy: 'SEED',
     },
 
     // Clinic 3 - 5 appointments
     {
       id: APT_C3_1, clinicId: CLINIC_3, patientId: PAT_C3_1, professionalId: PROF_CAMILA,
       serviceId: SVC_C3_AVAL, startsAt: futureDate(1, 8, 0), endsAt: futureDate(1, 8, 30),
-      status: 'AGENDADA' as const, createdBy: 'SEED',
+      status: 'CONFIRMED' as const, createdBy: 'SEED',
     },
     {
       id: APT_C3_2, clinicId: CLINIC_3, patientId: PAT_C3_2, professionalId: PROF_CAMILA,
       serviceId: SVC_C3_IMPL, startsAt: futureDate(2, 9, 0), endsAt: futureDate(2, 10, 30),
-      status: 'CONFIRMADA' as const, createdBy: 'SEED',
+      status: 'CONFIRMED' as const, createdBy: 'SEED',
     },
     {
       id: APT_C3_3, clinicId: CLINIC_3, patientId: PAT_C3_3, professionalId: PROF_FELIPE,
       serviceId: SVC_C3_CANAL, startsAt: futureDate(3, 15, 0), endsAt: futureDate(3, 16, 0),
-      status: 'CONFIRMADA' as const, createdBy: 'SEED',
+      status: 'CONFIRMED' as const, createdBy: 'SEED',
     },
     {
       id: APT_C3_4, clinicId: CLINIC_3, patientId: PAT_C3_4, professionalId: PROF_FELIPE,
       serviceId: SVC_C3_AVAL, startsAt: futureDate(5, 10, 0), endsAt: futureDate(5, 10, 30),
-      status: 'AGENDADA' as const, createdBy: 'SEED',
+      status: 'CONFIRMED' as const, createdBy: 'SEED',
     },
     {
       id: APT_C3_5, clinicId: CLINIC_3, patientId: PAT_C3_5, professionalId: PROF_CAMILA,
       serviceId: SVC_C3_CANAL, startsAt: futureDate(6, 14, 0), endsAt: futureDate(6, 15, 0),
-      status: 'AGENDADA' as const, createdBy: 'SEED',
+      status: 'CONFIRMED' as const, createdBy: 'SEED',
     },
   ];
 
@@ -452,7 +533,9 @@ async function main() {
 
   await cleanup();
   await seedClinics();
+  await seedSpecialties();
   await seedProfessionals();
+  await seedProfessionalSpecialties();
   await seedClinicProfessionals();
   await seedServices();
   await seedProfessionalServices();

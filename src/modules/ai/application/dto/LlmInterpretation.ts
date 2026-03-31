@@ -1,40 +1,28 @@
-export const llmIntents = [
-  "GREETING",
-  "LIST_SERVICES",
-  "SERVICE_INFO",
-  "CLINIC_INFO",
-  "INSURANCE_INFO",
-  "HOURS_INFO",
-  "LOCATION_INFO",
-  "BOOK_APPOINTMENT",
-  "RESCHEDULE_APPOINTMENT",
-  "CANCEL_APPOINTMENT",
-  "CONFIRM_APPOINTMENT",
-  "CHECK_AVAILABILITY",
-  "PAIN_OR_URGENT_CASE",
-  "SMALL_TALK",
-  "TALK_TO_HUMAN",
-  "UNKNOWN",
-] as const;
+// ─── Re-export from single source of truth ─────────────────
+// Intent and stage definitions live in @/shared/domain/constants.
+// This file re-exports them for backward compatibility.
 
-export const llmStages = [
-  "NEEDS_INFO",
-  "COLLECTING_REQUIRED_FIELDS",
-  "USER_SELECTED_SLOT",
-  "USER_CONFIRMED_DETAILS",
-  "INFORMATIONAL_RESPONSE",
-] as const;
+import type {
+  LlmIntent,
+  LlmStage,
+  UrgencyLevel,
+  CareType,
+} from "@/shared/domain/constants";
 
-export const urgencyLevels = ["BAIXA", "MEDIA", "ALTA"] as const;
-export const careTypes = ["PARTICULAR", "INSURANCE"] as const;
+export {
+  LLM_INTENTS as llmIntents,
+  LLM_STAGES as llmStages,
+  URGENCY_LEVELS as urgencyLevels,
+  CARE_TYPES as careTypes,
+} from "@/shared/domain/constants";
 
-export type LlmIntent = (typeof llmIntents)[number];
-export type LlmStage = (typeof llmStages)[number];
-export type LlmUrgency = (typeof urgencyLevels)[number];
-export type CareType = (typeof careTypes)[number];
+export type { LlmIntent, LlmStage, CareType };
+export type LlmUrgency = UrgencyLevel;
 
 export type LlmEntities = {
   full_name?: string | null;
+  cpf?: string | null;
+  birth_date?: string | null;
   phone_number?: string | null;
   care_type?: CareType | null;
   insurance_name?: string | null;

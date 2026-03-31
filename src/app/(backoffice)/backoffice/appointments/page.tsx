@@ -28,11 +28,13 @@ type Appointment = {
 
 const APPOINTMENT_STATUSES = [
   { value: "", label: "Todos os status" },
-  { value: "AGENDADA", label: "Agendada" },
-  { value: "CONFIRMADA", label: "Confirmada" },
-  { value: "CANCELADA", label: "Cancelada" },
+  { value: "PENDING", label: "Pendente" },
+  { value: "CONFIRMED", label: "Confirmado" },
+  { value: "RESCHEDULED", label: "Reagendado" },
+  { value: "CANCELLED", label: "Cancelado" },
   { value: "NO_SHOW", label: "No Show" },
-  { value: "COMPARECEU", label: "Compareceu" },
+  { value: "IN_PROGRESS", label: "Em Atendimento" },
+  { value: "COMPLETED", label: "Concluído" },
 ];
 
 const formatDateTime = (iso: string): string => {

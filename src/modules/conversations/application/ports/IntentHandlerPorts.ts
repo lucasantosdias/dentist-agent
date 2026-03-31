@@ -10,7 +10,10 @@ export type SchedulingIntentInput = {
 };
 
 export type SchedulingIntentResult = {
-  reply_text: string;
+  goal: string;
+  facts: string[];
+  constraints: string[];
+  missing_fields: string[];
   conversation_state: "AUTO" | "WAITING";
   appointment?: {
     id: string;
@@ -29,6 +32,7 @@ export interface SchedulingIntentHandlerPort {
 
 export type CancellationInput = {
   patient_id: string;
+  all_patient_ids?: string[];
   requested_datetime_iso?: string | null;
   reason?: string | null;
   now: Date;
@@ -58,6 +62,7 @@ export interface CancellationHandlerPort {
 
 export type ConfirmPresenceInput = {
   patient_id: string;
+  all_patient_ids?: string[];
   requested_datetime_iso?: string | null;
   now: Date;
 };
@@ -82,6 +87,35 @@ export type ConfirmPresenceResult =
 
 export interface ConfirmPresenceHandlerPort {
   execute(input: ConfirmPresenceInput): Promise<ConfirmPresenceResult>;
+}
+
+export type RescheduleInput = {
+  patient_id: string;
+  all_patient_ids?: string[];
+  clinic_id: string;
+  patient_name?: string | null;
+  patient_cpf?: string | null;
+  requested_datetime_iso?: string | null;
+  new_datetime_iso?: string | null;
+  now: Date;
+};
+
+export type RescheduleResult =
+  | { kind: "NO_APPOINTMENTS" }
+  | {
+      kind: "NEEDS_CLARIFICATION";
+      options: Array<{ appointment_id: string; starts_at_iso: string; service_code: string; professional_name: string }>;
+    }
+  | { kind: "NEEDS_NEW_DATETIME"; current_appointment: { id: string; starts_at_iso: string; service_code: string; professional_name: string } }
+  | { kind: "SLOT_UNAVAILABLE"; current_appointment: { id: string; starts_at_iso: string; service_code: string; professional_name: string }; available_times?: string[] }
+  | {
+      kind: "RESCHEDULED";
+      old_appointment: { id: string; starts_at_iso: string; service_code: string; professional_name: string };
+      new_appointment: { id: string; status: string; starts_at_iso: string; ends_at_iso: string; service_code: string; professional_name: string };
+    };
+
+export interface RescheduleHandlerPort {
+  execute(input: RescheduleInput): Promise<RescheduleResult>;
 }
 
 export type CatalogSnapshot = {

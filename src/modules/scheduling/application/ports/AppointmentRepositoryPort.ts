@@ -21,4 +21,22 @@ export interface AppointmentRepositoryPort {
     statuses: AppointmentStatus[],
     fromDate?: Date,
   ): Promise<Appointment[]>;
+
+  /**
+   * Same as listByPatientAndStatuses but accepts multiple patient IDs.
+   * Used for cross-session identity resolution when a patient has
+   * duplicate records.
+   */
+  listByPatientIdsAndStatuses(
+    patientIds: string[],
+    statuses: AppointmentStatus[],
+    fromDate?: Date,
+  ): Promise<Appointment[]>;
+
+  /**
+   * Find CONFIRMED appointments whose scheduled start time has passed
+   * by at least `graceMinutes`, scoped to a specific clinic.
+   * Used by the overdue lifecycle processor.
+   */
+  listOverdueConfirmed(clinicId: string, cutoffTime: Date): Promise<Appointment[]>;
 }

@@ -1,6 +1,7 @@
 export type ProfessionalProps = {
   id: string;
   displayName: string;
+  specialties: string[];
   email: string | null;
   phone: string | null;
   timezone: string;
@@ -16,6 +17,10 @@ export class Professional {
 
   get displayName(): string {
     return this.props.displayName;
+  }
+
+  get specialties(): string[] {
+    return this.props.specialties;
   }
 
   /** @deprecated use displayName */

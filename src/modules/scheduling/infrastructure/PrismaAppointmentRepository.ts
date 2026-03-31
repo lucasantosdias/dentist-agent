@@ -37,7 +37,7 @@ export class PrismaAppointmentRepository implements AppointmentRepositoryPort {
         serviceId: input.serviceId,
         startsAt: input.startsAt,
         endsAt: input.endsAt,
-        status: input.status ?? "AGENDADA",
+        status: input.status ?? "CONFIRMED",
         createdBy: input.createdBy ?? "BOT",
       },
     });
@@ -70,6 +70,38 @@ export class PrismaAppointmentRepository implements AppointmentRepositoryPort {
         patientId,
         status: { in: statuses },
         ...(fromDate ? { startsAt: { gte: fromDate } } : {}),
+      },
+      orderBy: { startsAt: "asc" },
+    });
+
+    return rows.map(mapAppointment);
+  }
+
+  async listByPatientIdsAndStatuses(
+    patientIds: string[],
+    statuses: AppointmentStatus[],
+    fromDate?: Date,
+  ): Promise<Appointment[]> {
+    if (patientIds.length === 0) return [];
+
+    const rows = await this.prisma.appointment.findMany({
+      where: {
+        patientId: { in: patientIds },
+        status: { in: statuses },
+        ...(fromDate ? { startsAt: { gte: fromDate } } : {}),
+      },
+      orderBy: { startsAt: "asc" },
+    });
+
+    return rows.map(mapAppointment);
+  }
+
+  async listOverdueConfirmed(clinicId: string, cutoffTime: Date): Promise<Appointment[]> {
+    const rows = await this.prisma.appointment.findMany({
+      where: {
+        clinicId,
+        status: "CONFIRMED",
+        startsAt: { lt: cutoffTime },
       },
       orderBy: { startsAt: "asc" },
     });

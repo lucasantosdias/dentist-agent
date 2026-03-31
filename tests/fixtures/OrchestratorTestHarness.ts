@@ -12,6 +12,7 @@ import {
   StubSchedulingHandler,
   StubCancellationHandler,
   StubConfirmPresenceHandler,
+  StubRescheduleHandler,
   StubCatalogSnapshot,
 } from "./mocks/StubSchedulingHandler";
 import { CLINIC_A_ID } from "./catalog";
@@ -29,6 +30,7 @@ export class OrchestratorTestHarness {
   public readonly schedulingHandler: StubSchedulingHandler;
   public readonly cancellationHandler: StubCancellationHandler;
   public readonly confirmPresenceHandler: StubConfirmPresenceHandler;
+  public readonly rescheduleHandler: StubRescheduleHandler;
   public readonly orchestrator: ConversationOrchestrator;
 
   private messageCounter = 0;
@@ -48,6 +50,7 @@ export class OrchestratorTestHarness {
     this.schedulingHandler = new StubSchedulingHandler();
     this.cancellationHandler = new StubCancellationHandler();
     this.confirmPresenceHandler = new StubConfirmPresenceHandler();
+    this.rescheduleHandler = new StubRescheduleHandler();
 
     this.orchestrator = new ConversationOrchestrator(
       this.processedInboundRepo,
@@ -62,8 +65,9 @@ export class OrchestratorTestHarness {
       "America/Sao_Paulo",
       20,
       this.clinicSettingsRepo,
-      null, // responseGenerator (not used in tests)
+      null, // responseGenerator
       this.knowledgeRepo,
+      this.rescheduleHandler,
     );
   }
 

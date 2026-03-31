@@ -39,6 +39,8 @@ export class InitiateGoogleCalendarConnectionUseCase {
     });
 
     const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+    console.log("[InitiateGoogleCalendar] redirect_uri:", this.redirectUri);
+    console.log("[InitiateGoogleCalendar] OAuth URL:", oauthUrl);
 
     return ok({ oauthUrl });
   }

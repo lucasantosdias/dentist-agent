@@ -11,7 +11,9 @@ export function buildPatient(overrides: PatientOverrides = {}): Patient {
     externalUserId: overrides.externalUserId ?? "user-" + randomUUID().slice(0, 8),
     defaultChannel: overrides.defaultChannel ?? "sim",
     fullName: overrides.fullName ?? null,
+    cpf: overrides.cpf ?? null,
     phoneE164: overrides.phoneE164 ?? null,
+    birthDate: overrides.birthDate ?? null,
     state: overrides.state ?? "LEAD_NEW",
     lastInteractionAt: overrides.lastInteractionAt ?? null,
   });

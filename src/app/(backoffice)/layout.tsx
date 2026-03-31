@@ -66,6 +66,11 @@ const menuItems: MenuProps["items"] = [
     icon: <ExperimentOutlined />,
     label: "AI Simulador",
   },
+  {
+    key: "/backoffice/settings",
+    icon: <SettingOutlined />,
+    label: "Configuracoes",
+  },
 ];
 
 export default function BackofficeLayout({ children }: { children: React.ReactNode }) {

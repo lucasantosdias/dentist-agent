@@ -156,8 +156,8 @@ describe("Group D — Escalation after repeated failures", () => {
     await harness.send("asdf");
     const r3 = await harness.send("xyz");
 
-    // After 3 unknowns, should get fallback with escalation offer
-    expect(r3.reply_text.toLowerCase()).toContain("atendente");
+    // After 3 unknowns, should get escalation fact
+    expect(r3.reply_text.toLowerCase()).toContain("múltiplas tentativas");
   });
 
   it("explicit handoff after failures still works", async () => {

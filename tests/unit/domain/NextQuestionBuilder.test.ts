@@ -1,60 +1,40 @@
-import { buildNextQuestion, buildFunnelStep } from "@/modules/conversations/domain/services/NextQuestionBuilder";
+import { getFieldPriority, buildFunnelStep } from "@/modules/conversations/domain/services/NextQuestionBuilder";
 
 describe("NextQuestionBuilder", () => {
-  describe("buildNextQuestion", () => {
-    it("asks for service first when service is unknown (before name)", () => {
-      const question = buildNextQuestion(
-        ["full_name", "care_type", "service_code", "professional_name", "datetime_iso"],
-        "BOOK_APPOINTMENT",
-      );
-      // When service is still missing, ask for it first
-      expect(question.toLowerCase()).toContain("procedimento");
+  describe("getFieldPriority", () => {
+    it("prioritizes service_code when service is unknown", () => {
+      const priority = getFieldPriority("BOOK_APPOINTMENT", [
+        "full_name", "care_type", "service_code", "datetime_iso",
+      ]);
+      expect(priority[0]).toBe("service_code");
     });
 
-    it("asks for name first when service is already known", () => {
-      const question = buildNextQuestion(
-        ["full_name", "care_type", "professional_name", "datetime_iso"],
-        "BOOK_APPOINTMENT",
-      );
-      expect(question).toContain("nome");
+    it("prioritizes full_name when service is known", () => {
+      const priority = getFieldPriority("BOOK_APPOINTMENT", [
+        "full_name", "care_type", "datetime_iso",
+      ]);
+      expect(priority[0]).toBe("full_name");
     });
 
-    it("asks for care_type when name is provided but care_type is missing", () => {
-      const question = buildNextQuestion(
-        ["care_type", "professional_name", "datetime_iso"],
-        "BOOK_APPOINTMENT",
-      );
-      expect(question.toLowerCase()).toContain("particular");
+    it("returns correct order for RESCHEDULE_APPOINTMENT", () => {
+      const priority = getFieldPriority("RESCHEDULE_APPOINTMENT", [
+        "full_name", "appointment_id", "datetime_iso",
+      ]);
+      expect(priority).toEqual(["full_name", "appointment_id", "datetime_iso"]);
     });
 
-    it("asks for service_code when name and care_type collected", () => {
-      const question = buildNextQuestion(
-        ["service_code", "datetime_iso"],
-        "BOOK_APPOINTMENT",
-      );
-      expect(question).toContain("procedimento");
+    it("returns correct order for CANCEL_APPOINTMENT", () => {
+      const priority = getFieldPriority("CANCEL_APPOINTMENT", [
+        "full_name", "appointment_id",
+      ]);
+      expect(priority).toEqual(["full_name", "appointment_id"]);
     });
 
-    it("asks for datetime when only datetime is missing", () => {
-      const question = buildNextQuestion(
-        ["datetime_iso"],
-        "BOOK_APPOINTMENT",
-      );
-      expect(question.toLowerCase()).toContain("dia");
-    });
-
-    it("returns confirmation prompt when no fields are missing", () => {
-      const question = buildNextQuestion([], "BOOK_APPOINTMENT");
-      expect(question).toBeTruthy();
-    });
-
-    it("uses LLM suggestion as fallback for unknown field", () => {
-      const question = buildNextQuestion(
-        ["unknown_field"],
-        "BOOK_APPOINTMENT",
-        "Qual informação você gostaria de fornecer?",
-      );
-      expect(question).toBeTruthy();
+    it("returns correct order for PAIN_OR_URGENT_CASE", () => {
+      const priority = getFieldPriority("PAIN_OR_URGENT_CASE", [
+        "full_name", "symptom",
+      ]);
+      expect(priority).toEqual(["full_name", "symptom"]);
     });
   });
 

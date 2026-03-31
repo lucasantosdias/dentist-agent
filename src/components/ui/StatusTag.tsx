@@ -3,11 +3,13 @@ import { Tag } from "antd";
 
 const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
   // Appointment statuses
-  AGENDADA: { color: "blue", label: "Agendada" },
-  CONFIRMADA: { color: "green", label: "Confirmada" },
-  CANCELADA: { color: "red", label: "Cancelada" },
+  PENDING: { color: "blue", label: "Pendente" },
+  CONFIRMED: { color: "green", label: "Confirmado" },
+  RESCHEDULED: { color: "geekblue", label: "Reagendado" },
+  CANCELLED: { color: "red", label: "Cancelado" },
   NO_SHOW: { color: "orange", label: "No Show" },
-  COMPARECEU: { color: "cyan", label: "Compareceu" },
+  IN_PROGRESS: { color: "cyan", label: "Em Atendimento" },
+  COMPLETED: { color: "success", label: "Concluído" },
   // Conversation states
   AUTO: { color: "processing", label: "Auto" },
   WAITING: { color: "warning", label: "Aguardando" },
@@ -19,8 +21,7 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
   LEAD_INACTIVE: { color: "default", label: "Lead Inativo" },
   ACTIVE: { color: "green", label: "Ativo" },
   INACTIVE: { color: "default", label: "Inativo" },
-  // Outbox
-  PENDING: { color: "processing", label: "Pendente" },
+  // Outbox (PENDING already defined above for appointments)
   PROCESSING: { color: "warning", label: "Processando" },
   DONE: { color: "success", label: "Concluído" },
   FAILED: { color: "error", label: "Falhou" },

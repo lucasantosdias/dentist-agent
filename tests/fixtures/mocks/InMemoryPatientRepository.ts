@@ -30,7 +30,9 @@ export class InMemoryPatientRepository implements PatientRepositoryPort {
       externalUserId,
       defaultChannel: channel,
       fullName: null,
+      cpf: null,
       phoneE164: null,
+      birthDate: null,
       state: "LEAD_NEW",
       lastInteractionAt: null,
     });
@@ -45,6 +47,27 @@ export class InMemoryPatientRepository implements PatientRepositoryPort {
 
   async findById(id: string): Promise<Patient | null> {
     return this.patients.get(id) ?? null;
+  }
+
+  async findByCpfAndClinic(clinicId: string, cpf: string): Promise<Patient[]> {
+    const results: Patient[] = [];
+    for (const patient of this.patients.values()) {
+      if (patient.clinicId === clinicId && patient.cpf === cpf) {
+        results.push(patient);
+      }
+    }
+    return results;
+  }
+
+  async findByClinicAndIdentity(clinicId: string, name?: string | null, cpf?: string | null): Promise<Patient[]> {
+    if (!name && !cpf) return [];
+    const results: Patient[] = [];
+    for (const patient of this.patients.values()) {
+      if (patient.clinicId !== clinicId) continue;
+      if (cpf && patient.cpf === cpf) { results.push(patient); continue; }
+      if (name && patient.fullName?.toLowerCase() === name.toLowerCase()) { results.push(patient); }
+    }
+    return results;
   }
 
   /** Test helper: seed a patient directly */

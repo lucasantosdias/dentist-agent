@@ -4,29 +4,72 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a74e1b93-d313-4d8a-b6d8-fe94c8b07f19" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.mcp.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/prints/img.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dentist-agent.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/favicon.ico" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/globals.css" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/layout.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/page.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/eslint.config.mjs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/next.config.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/postcss.config.mjs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/public/file.svg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/public/globe.svg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/public/next.svg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/public/vercel.svg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/public/window.svg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tsconfig.json" beforeDir="false" />
+    <list default="true" id="a74e1b93-d313-4d8a-b6d8-fe94c8b07f19" name="Changes" comment="Add initial project setup with PostgreSQL configuration and basic components">
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources.local.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.local.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/00b459a3-2618-4d1b-85ee-6a795f0377c5.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/00b459a3-2618-4d1b-85ee-6a795f0377c5/storage_v2/_src_/database/dentist_agent.6QgA-g.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/00b459a3-2618-4d1b-85ee-6a795f0377c5/storage_v2/_src_/database/dentist_agent.6QgA-g/schema/information_schema.FNRwLQ.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/00b459a3-2618-4d1b-85ee-6a795f0377c5/storage_v2/_src_/database/dentist_agent.6QgA-g/schema/pg_catalog.0S1ZNQ.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/00b459a3-2618-4d1b-85ee-6a795f0377c5/storage_v2/_src_/database/dentist_agent.6QgA-g/schema/public.abK9xQ.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/27500885-147d-44a4-909a-3e91ff3ea2bf.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/27500885-147d-44a4-909a-3e91ff3ea2bf.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/27500885-147d-44a4-909a-3e91ff3ea2bf/storage_v2/_src_/database/dentzi_ai.kQ1abg/schema/public.abK9xQ.meta" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/27500885-147d-44a4-909a-3e91ff3ea2bf/storage_v2/_src_/database/dentzi_ai.kQ1abg/schema/public.abK9xQ.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/db-forest-config.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/db-forest-config.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prisma/schema.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/schema.prisma" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prisma/seed.ts" beforeDir="false" afterPath="$PROJECT_DIR$/prisma/seed.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/(backoffice)/backoffice/appointments/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/(backoffice)/backoffice/appointments/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/(backoffice)/backoffice/professionals/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/(backoffice)/backoffice/professionals/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/(backoffice)/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/(backoffice)/layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/admin/appointments/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/admin/appointments/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/admin/clinics/[clinicId]/professionals/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/admin/clinics/[clinicId]/professionals/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/admin/clinics/[clinicId]/services/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/admin/clinics/[clinicId]/services/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app/api/admin/professionals/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/api/admin/professionals/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/ui/StatusTag.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/components/ui/StatusTag.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/ai/application/dto/LlmInterpretation.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/ai/application/dto/LlmInterpretation.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/ai/application/ports/ResponseGeneratorPort.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/ai/application/ports/ResponseGeneratorPort.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/ai/infrastructure/MockLlmInterpreter.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/ai/infrastructure/MockLlmInterpreter.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/ai/infrastructure/OllamaLlmInterpreter.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/ai/infrastructure/OllamaLlmInterpreter.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/ai/infrastructure/OllamaResponseGenerator.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/ai/infrastructure/OllamaResponseGenerator.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/ai/infrastructure/createLlmInterpreter.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/ai/infrastructure/createLlmInterpreter.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/ai/infrastructure/createResponseGenerator.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/ai/infrastructure/createResponseGenerator.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/ai/infrastructure/prompts/classificationPrompt.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/ai/infrastructure/prompts/classificationPrompt.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/catalog/application/ports/CatalogRepositoryPort.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/catalog/application/ports/CatalogRepositoryPort.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/catalog/domain/Professional.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/catalog/domain/Professional.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/catalog/infrastructure/PrismaCatalogRepository.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/catalog/infrastructure/PrismaCatalogRepository.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/conversations/application/ports/IntentHandlerPorts.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/conversations/application/ports/IntentHandlerPorts.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/conversations/domain/services/ConversationalSignals.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/conversations/domain/services/ConversationalSignals.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/conversations/domain/services/EntityMerger.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/conversations/domain/services/EntityMerger.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/conversations/domain/services/NextQuestionBuilder.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/conversations/domain/services/NextQuestionBuilder.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/conversations/domain/services/RequirementResolver.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/conversations/domain/services/RequirementResolver.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/conversations/domain/services/ResponseComposer.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/integration/application/usecases/InitiateGoogleCalendarConnectionUseCase.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/integration/application/usecases/InitiateGoogleCalendarConnectionUseCase.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/patients/application/ports/PatientRepositoryPort.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/patients/application/ports/PatientRepositoryPort.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/patients/domain/Patient.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/patients/domain/Patient.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/patients/infrastructure/PrismaPatientRepository.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/patients/infrastructure/PrismaPatientRepository.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/scheduling/application/ports/AppointmentRepositoryPort.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/scheduling/application/ports/AppointmentRepositoryPort.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/scheduling/application/usecases/CancelAppointmentUseCase.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/scheduling/application/usecases/CancelAppointmentUseCase.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/scheduling/application/usecases/ConfirmAppointmentUseCase.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/scheduling/application/usecases/ConfirmAppointmentUseCase.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/scheduling/application/usecases/ConfirmPresenceUseCase.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/scheduling/application/usecases/ConfirmPresenceUseCase.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/scheduling/domain/Appointment.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/scheduling/domain/Appointment.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/scheduling/domain/AppointmentStatus.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/scheduling/domain/AppointmentStatus.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/scheduling/infrastructure/PrismaAppointmentRepository.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/scheduling/infrastructure/PrismaAppointmentRepository.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/modules/scheduling/infrastructure/PrismaSchedulingAvailability.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/modules/scheduling/infrastructure/PrismaSchedulingAvailability.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/server/container.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/server/container.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/shared/time.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/shared/time.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/acceptance/clinic-settings-integration.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/tests/acceptance/clinic-settings-integration.test.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/acceptance/conversational-levels.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/tests/acceptance/conversational-levels.test.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/acceptance/mixed-intent-acknowledgment.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/tests/acceptance/mixed-intent-acknowledgment.test.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/acceptance/scenario-a-unknown-patient-scheduling.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/tests/acceptance/scenario-a-unknown-patient-scheduling.test.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/factories/PatientFactory.ts" beforeDir="false" afterPath="$PROJECT_DIR$/tests/factories/PatientFactory.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/fixtures/OrchestratorTestHarness.ts" beforeDir="false" afterPath="$PROJECT_DIR$/tests/fixtures/OrchestratorTestHarness.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/fixtures/mocks/InMemoryPatientRepository.ts" beforeDir="false" afterPath="$PROJECT_DIR$/tests/fixtures/mocks/InMemoryPatientRepository.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/fixtures/mocks/StubSchedulingHandler.ts" beforeDir="false" afterPath="$PROJECT_DIR$/tests/fixtures/mocks/StubSchedulingHandler.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/domain/ConversationalSignals.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/domain/ConversationalSignals.test.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/domain/NextQuestionBuilder.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/domain/NextQuestionBuilder.test.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/domain/RequirementResolver.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/tests/unit/domain/RequirementResolver.test.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/domain/ResponseComposer.test.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tsconfig.tsbuildinfo" beforeDir="false" afterPath="$PROJECT_DIR$/tsconfig.tsbuildinfo" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -39,12 +82,24 @@
     </persistenceIdMap>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="182" />
+    <option name="cachedIndexableFilesCount" value="267" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;raquelmsouza&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;git@github.com:lucasantosdias/dentist-agent.git&quot;,
+    &quot;accountId&quot;: &quot;9fbd0b8b-bd88-4eb9-a407-7755b121f86c&quot;
+  }
+}</component>
   <component name="McpProjectServerCommands">
     <commands />
     <urls />
@@ -57,38 +112,44 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "JavaScript Debug.inbound.executor": "Debug",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.MCP Project settings loaded": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "git-widget-placeholder": "main",
-    "javascript.preferred.runtime.type.id": "node",
-    "js.debugger.nextJs.config.created.client": "true",
-    "js.debugger.nextJs.config.created.server": "true",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_interpreter_path": "node",
-    "nodejs_package_manager_path": "npm",
-    "ts.external.directory.path": "/Users/raquelmachadosouza/www/dentist-agent/node_modules/typescript/lib",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;JavaScript Debug.inbound.executor&quot;: &quot;Debug&quot;,
+    &quot;JavaScript Debug.localhost:3000.executor&quot;: &quot;Debug&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;database.data.extractors.current.export.id&quot;: &quot;CSV-Groovy.csv.groovy&quot;,
+    &quot;database.data.extractors.current.id&quot;: &quot;CSV-Groovy.csv.groovy&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;javascript.preferred.runtime.type.id&quot;: &quot;node&quot;,
+    &quot;js.debugger.nextJs.config.created.client&quot;: &quot;true&quot;,
+    &quot;js.debugger.nextJs.config.created.server&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_interpreter_path&quot;: &quot;node&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;/Users/raquelmachadosouza/www/dentist-agent/node_modules/typescript/lib&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
-  "keyToStringList": {
-    "DatabaseDriversLRU": [
-      "postgresql"
+  &quot;keyToStringList&quot;: {
+    &quot;DatabaseDriversLRU&quot;: [
+      &quot;postgresql&quot;
     ]
   }
-}]]></component>
-  <component name="RunManager" selected="JavaScript Debug.inbound">
+}</component>
+  <component name="RunManager" selected="JavaScript Debug.localhost:3000">
     <configuration name="Next.js: debug client-side" type="JavascriptDebugType" uri="http://localhost:3000/">
       <method v="2" />
     </configuration>
     <configuration name="inbound" type="JavascriptDebugType" temporary="true" nameIsGenerated="true" uri="http://localhost:3000/api/channels/sim/inbound">
+      <method v="2" />
+    </configuration>
+    <configuration name="localhost:3000" type="JavascriptDebugType" temporary="true" nameIsGenerated="true" uri="http://localhost:3000">
       <method v="2" />
     </configuration>
     <configuration name="Next.js: server-side" type="js.build_tools.npm">
@@ -103,6 +164,7 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="JavaScript Debug.localhost:3000" />
         <item itemvalue="JavaScript Debug.inbound" />
       </list>
     </recent_temporary>
@@ -124,12 +186,29 @@
       <workItem from="1772734085901" duration="18091000" />
       <workItem from="1773181932885" duration="4472000" />
       <workItem from="1773241327516" duration="67424000" />
-      <workItem from="1774016129367" duration="32404000" />
+      <workItem from="1774016129367" duration="98516000" />
+      <workItem from="1774648143611" duration="6847000" />
+      <workItem from="1774900546488" duration="732000" />
+      <workItem from="1774901589772" duration="740000" />
+      <workItem from="1774962387764" duration="6616000" />
     </task>
+    <task id="LOCAL-00001" summary="Add initial project setup with PostgreSQL configuration and basic components">
+      <option name="closed" value="true" />
+      <created>1774299112660</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1774299112660</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Add initial project setup with PostgreSQL configuration and basic components" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add initial project setup with PostgreSQL configuration and basic components" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

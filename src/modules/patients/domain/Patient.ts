@@ -6,7 +6,9 @@ export type PatientProps = {
   externalUserId: string;
   defaultChannel: string;
   fullName: string | null;
+  cpf: string | null;
   phoneE164: string | null;
+  birthDate: string | null;
   state: PatientState;
   lastInteractionAt: Date | null;
 };
@@ -14,37 +16,16 @@ export type PatientProps = {
 export class Patient {
   constructor(private props: PatientProps) {}
 
-  get id(): string {
-    return this.props.id;
-  }
-
-  get clinicId(): string {
-    return this.props.clinicId;
-  }
-
-  get defaultChannel(): string {
-    return this.props.defaultChannel;
-  }
-
-  get externalUserId(): string {
-    return this.props.externalUserId;
-  }
-
-  get fullName(): string | null {
-    return this.props.fullName;
-  }
-
-  get phoneE164(): string | null {
-    return this.props.phoneE164;
-  }
-
-  get state(): PatientState {
-    return this.props.state;
-  }
-
-  get lastInteractionAt(): Date | null {
-    return this.props.lastInteractionAt;
-  }
+  get id(): string { return this.props.id; }
+  get clinicId(): string { return this.props.clinicId; }
+  get defaultChannel(): string { return this.props.defaultChannel; }
+  get externalUserId(): string { return this.props.externalUserId; }
+  get fullName(): string | null { return this.props.fullName; }
+  get cpf(): string | null { return this.props.cpf; }
+  get phoneE164(): string | null { return this.props.phoneE164; }
+  get birthDate(): string | null { return this.props.birthDate; }
+  get state(): PatientState { return this.props.state; }
+  get lastInteractionAt(): Date | null { return this.props.lastInteractionAt; }
 
   setFullName(fullName: string): void {
     const normalized = fullName.trim();
@@ -54,6 +35,18 @@ export class Patient {
         this.props.state = "LEAD_QUALIFIED";
       }
     }
+  }
+
+  setCpf(cpf: string): void {
+    // Normalize: keep only digits
+    const digits = cpf.replace(/\D/g, "");
+    if (digits.length === 11) {
+      this.props.cpf = digits;
+    }
+  }
+
+  setBirthDate(dateStr: string): void {
+    this.props.birthDate = dateStr.trim() || null;
   }
 
   setPhone(phone: string): void {

@@ -31,11 +31,13 @@ enum MessageDirection {
 }
 
 enum AppointmentStatus {
-  AGENDADA
-  CONFIRMADA
-  CANCELADA
+  PENDING
+  CONFIRMED
+  RESCHEDULED
+  CANCELLED
   NO_SHOW
-  COMPARECEU
+  IN_PROGRESS
+  COMPLETED
 }
 
 enum CancelledBy {
@@ -104,6 +106,7 @@ model Clinic {
   clinicProfessionals ClinicProfessional[]
   patients            Patient[]
   services            Service[]
+  specialties         Specialty[]
   conversations       Conversation[]
   appointments        Appointment[]
   slotHolds           SlotHold[]
@@ -136,6 +139,7 @@ model Patient {
   externalUserId    String                @map("external_user_id")
   defaultChannel    String                @map("default_channel")
   fullName          String?               @map("full_name")
+  cpf               String?
   phoneE164         String?               @map("phone_e164")
   email             String?
   birthDate         DateTime?             @map("birth_date")
@@ -239,10 +243,36 @@ model Service {
   @@map("service")
 }
 
+model Specialty {
+  id        String   @id @default(uuid()) @db.Uuid
+  clinicId  String   @db.Uuid @map("clinic_id")
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  clinic                  Clinic                   @relation(fields: [clinicId], references: [id])
+  professionalSpecialties ProfessionalSpecialty[]
+
+  @@unique([clinicId, name])
+  @@index([clinicId, active])
+  @@map("specialty")
+}
+
+model ProfessionalSpecialty {
+  professionalId String   @db.Uuid @map("professional_id")
+  specialtyId    String   @db.Uuid @map("specialty_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  professional Professional @relation(fields: [professionalId], references: [id])
+  specialty    Specialty    @relation(fields: [specialtyId], references: [id])
+
+  @@id([professionalId, specialtyId])
+  @@map("professional_specialty")
+}
+
 model Professional {
   id          String   @id @default(uuid()) @db.Uuid
   displayName String   @unique @map("display_name")
-  specialty   String?
   email       String?
   phone       String?
   timezone    String   @default("America/Sao_Paulo")
@@ -253,6 +283,7 @@ model Professional {
   clinicProfessionals       ClinicProfessional[]
   appointments              Appointment[]
   professionalServices      ProfessionalService[]
+  professionalSpecialties   ProfessionalSpecialty[]
   slotHolds                 SlotHold[]
   calendarConnections       ProfessionalCalendarConnection[]
   availabilityRules         ProfessionalAvailabilityRule[]
@@ -367,7 +398,7 @@ model Appointment {
   professionalId     String            @db.Uuid @map("professional_id")
   startsAt           DateTime          @map("starts_at")
   endsAt             DateTime          @map("ends_at")
-  status             AppointmentStatus @default(AGENDADA)
+  status             AppointmentStatus @default(CONFIRMED)
   cancelledAt        DateTime?         @map("cancelled_at")
   cancelledBy        CancelledBy?      @map("cancelled_by")
   cancellationReason String?           @map("cancellation_reason")

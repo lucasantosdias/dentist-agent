@@ -1,10 +1,13 @@
 /**
- * Regression tests for mixed-intent conversational acknowledgment.
+ * Regression tests for mixed-intent conversational behavior.
  *
  * These test the systemic behavior where a user message contains both
  * a social/greeting component AND a task intent. The system must:
  * 1. Preserve the task flow (deterministic next step)
- * 2. Acknowledge the greeting/social signal in the response
+ * 2. Correctly classify the primary intent (not greeting)
+ *
+ * Since the orchestrator now returns ResponseDirective facts (no LLM in tests),
+ * we validate flow goals, conversation state, and collected data — not exact wording.
  *
  * All user messages in pt-BR.
  */
@@ -19,37 +22,45 @@ describe("Mixed intent — greeting + scheduling", () => {
     harness = new OrchestratorTestHarness();
   });
 
-  it("'boa tarde, gostaria de fazer uma limpeza' → acknowledges + asks name", async () => {
+  it("'boa tarde, gostaria de fazer uma limpeza' → booking flow, asks for name", async () => {
     const response = await harness.send("boa tarde, gostaria de fazer uma limpeza");
 
-    // Must acknowledge greeting
-    expect(response.reply_text).toContain("Boa tarde!");
-    // Must still ask for the next required field
-    expect(response.reply_text.toLowerCase()).toContain("nome");
     // Must not escalate to HUMAN
     expect(response.conversation_state).not.toBe("HUMAN");
+    // Intent should be BOOK_APPOINTMENT
+    const conv = await harness.getLatestConversation();
+    expect(conv!.currentIntent).toBe("BOOK_APPOINTMENT");
+    // Service extracted, next missing field is full_name
+    expect(conv!.collectedData.service_code).toBe("LIMPEZA");
+    expect(conv!.missingRequirements).toContain("full_name");
   });
 
-  it("'oi, quero agendar avaliação' → acknowledges + asks name", async () => {
+  it("'oi, quero agendar avaliação' → booking flow, asks for name", async () => {
     const response = await harness.send("oi, quero agendar avaliação");
 
-    expect(response.reply_text).toContain("Oi!");
-    expect(response.reply_text.toLowerCase()).toContain("nome");
+    const conv = await harness.getLatestConversation();
+    expect(conv!.currentIntent).toBe("BOOK_APPOINTMENT");
+    expect(conv!.collectedData.service_code).toBe("AVALIACAO");
+    expect(conv!.missingRequirements).toContain("full_name");
   });
 
-  it("'bom dia, quero marcar uma consulta' → acknowledges + asks for service", async () => {
+  it("'bom dia, quero marcar uma consulta' → booking flow, asks for service", async () => {
     const response = await harness.send("bom dia, quero marcar uma consulta");
 
-    expect(response.reply_text).toContain("Bom dia!");
-    // No service specified → asks which procedure
+    // No service specified → asks which procedure (fact contains "Procedimentos")
     expect(response.reply_text.toLowerCase()).toContain("procedimento");
+    const conv = await harness.getLatestConversation();
+    expect(conv!.currentIntent).toBe("BOOK_APPOINTMENT");
+    expect(conv!.missingRequirements).toContain("service_code");
   });
 
-  it("'olá, gostaria de agendar um clareamento' → acknowledges + asks name", async () => {
-    const response = await harness.send("olá, gostaria de agendar um clareamento");
+  it("'olá, gostaria de agendar um clareamento' → booking flow, asks for name", async () => {
+    await harness.send("olá, gostaria de agendar um clareamento");
 
-    expect(response.reply_text).toContain("Olá!");
-    expect(response.reply_text.toLowerCase()).toContain("nome");
+    const conv = await harness.getLatestConversation();
+    expect(conv!.currentIntent).toBe("BOOK_APPOINTMENT");
+    expect(conv!.collectedData.service_code).toBe("CLAREAMENTO");
+    expect(conv!.missingRequirements).toContain("full_name");
   });
 
   it("intent is still BOOK_APPOINTMENT", async () => {
@@ -74,17 +85,20 @@ describe("Mixed intent — greeting + informational", () => {
     harness = new OrchestratorTestHarness();
   });
 
-  it("'olá, como funciona a limpeza?' → acknowledges + service info", async () => {
+  it("'olá, como funciona a limpeza?' → service info, AUTO state", async () => {
     const response = await harness.send("olá, como funciona a limpeza?");
 
-    expect(response.reply_text).toContain("Olá!");
     expect(response.conversation_state).toBe("AUTO");
+    const conv = await harness.getLatestConversation();
+    expect(conv!.currentIntent).toBe("SERVICE_INFO");
   });
 
-  it("'boa noite, o clareamento dói?' → acknowledges + service info", async () => {
+  it("'boa noite, o clareamento dói?' → service info", async () => {
     const response = await harness.send("boa noite, o clareamento dói?");
 
-    expect(response.reply_text).toContain("Boa noite!");
+    expect(response.conversation_state).toBe("AUTO");
+    const conv = await harness.getLatestConversation();
+    expect(conv!.currentIntent).toBe("SERVICE_INFO");
   });
 
   it("intent is SERVICE_INFO, not GREETING", async () => {
@@ -103,18 +117,18 @@ describe("Mixed intent — greeting + clinic info", () => {
     harness = new OrchestratorTestHarness();
   });
 
-  it("'bom dia, vocês aceitam convênio?' → acknowledges + answers", async () => {
+  it("'bom dia, vocês aceitam convênio?' → insurance info with convênio fact", async () => {
     const response = await harness.send("bom dia, vocês aceitam convênio?");
 
-    expect(response.reply_text).toContain("Bom dia!");
     expect(response.reply_text.toLowerCase()).toContain("convênio");
+    expect(response.conversation_state).toBe("AUTO");
   });
 
-  it("'oi, qual o horário de vocês?' → acknowledges + answers", async () => {
+  it("'oi, qual o horário de vocês?' → hours info", async () => {
     const response = await harness.send("oi, qual horário de funcionamento?");
 
-    expect(response.reply_text).toContain("Oi!");
-    expect(response.reply_text).toContain("horário");
+    expect(response.reply_text.toLowerCase()).toContain("horário");
+    expect(response.conversation_state).toBe("AUTO");
   });
 });
 
@@ -127,29 +141,23 @@ describe("Mixed intent — greeting + urgency", () => {
     harness = new OrchestratorTestHarness();
   });
 
-  it("'bom dia, estou com dor' → empathetic ack + urgency flow", async () => {
+  it("'bom dia, estou com dor' → urgency flow", async () => {
     const response = await harness.send("bom dia, estou com dor");
 
-    expect(response.reply_text).toContain("Bom dia!");
-    expect(response.reply_text).toContain("tranquilo");
     const conv = await harness.getLatestConversation();
     expect(conv!.currentIntent).toBe("PAIN_OR_URGENT_CASE");
   });
 
-  it("'oi, estou com dor' → empathetic ack + urgency", async () => {
+  it("'oi, estou com dor' → urgency flow", async () => {
     const response = await harness.send("oi, estou com dor");
 
-    expect(response.reply_text).toContain("Oi!");
-    expect(response.reply_text).toContain("tranquilo");
     const conv = await harness.getLatestConversation();
     expect(conv!.currentIntent).toBe("PAIN_OR_URGENT_CASE");
   });
 
-  it("'boa noite, meu dente quebrou' → urgency with ack", async () => {
+  it("'boa noite, meu dente quebrou' → urgency flow", async () => {
     const response = await harness.send("boa noite, meu dente quebrou");
 
-    expect(response.reply_text).toContain("Boa noite!");
-    expect(response.reply_text).toContain("tranquilo");
     const conv = await harness.getLatestConversation();
     expect(conv!.currentIntent).toBe("PAIN_OR_URGENT_CASE");
   });
@@ -164,12 +172,12 @@ describe("Acknowledgment safeguards", () => {
     harness = new OrchestratorTestHarness();
   });
 
-  it("pure greeting without task → normal greeting response (no double greeting)", async () => {
+  it("pure greeting without task → normal greeting response", async () => {
     const response = await harness.send("Boa tarde");
 
-    // Should be a normal greeting, not "Boa tarde! Boa tarde!"
-    const greetingCount = (response.reply_text.match(/Boa tarde/gi) || []).length;
-    expect(greetingCount).toBeLessThanOrEqual(1);
+    expect(response.conversation_state).toBe("AUTO");
+    // Reply should be the clinic name fact
+    expect(response.reply_text.length).toBeGreaterThan(0);
   });
 
   it("second turn does NOT get acknowledgment prefix", async () => {
@@ -186,7 +194,7 @@ describe("Acknowledgment safeguards", () => {
 
     // No greeting prefix
     expect(response.reply_text).not.toMatch(/^(Boa tarde|Bom dia|Boa noite|Olá|Oi)!/);
-    // No service specified → asks for service
+    // No service specified → asks for service (fact contains "Procedimentos")
     expect(response.reply_text.toLowerCase()).toContain("procedimento");
   });
 
@@ -212,26 +220,32 @@ describe("Group A — exact prompt scenarios: greeting + scheduling", () => {
     harness = new OrchestratorTestHarness();
   });
 
-  it("'boa noite, gostaria de agendar uma limpeza' → ack + name question", async () => {
+  it("'boa noite, gostaria de agendar uma limpeza' → booking flow, asks for name", async () => {
     const response = await harness.send("boa noite, gostaria de agendar uma limpeza");
 
-    expect(response.reply_text).toContain("Boa noite!");
-    expect(response.reply_text.toLowerCase()).toContain("nome");
     expect(response.conversation_state).not.toBe("HUMAN");
+    const conv = await harness.getLatestConversation();
+    expect(conv!.currentIntent).toBe("BOOK_APPOINTMENT");
+    expect(conv!.collectedData.service_code).toBe("LIMPEZA");
+    expect(conv!.missingRequirements).toContain("full_name");
   });
 
-  it("'boa tarde, quero marcar avaliação' → ack + name question", async () => {
+  it("'boa tarde, quero marcar avaliação' → booking flow, asks for name", async () => {
     const response = await harness.send("boa tarde, quero marcar avaliação");
 
-    expect(response.reply_text).toContain("Boa tarde!");
-    expect(response.reply_text.toLowerCase()).toContain("nome");
+    const conv = await harness.getLatestConversation();
+    expect(conv!.currentIntent).toBe("BOOK_APPOINTMENT");
+    expect(conv!.collectedData.service_code).toBe("AVALIACAO");
+    expect(conv!.missingRequirements).toContain("full_name");
   });
 
-  it("'oi, gostaria de agendar clareamento' → ack + name question", async () => {
+  it("'oi, gostaria de agendar clareamento' → booking flow, asks for name", async () => {
     const response = await harness.send("oi, gostaria de agendar clareamento");
 
-    expect(response.reply_text).toContain("Oi!");
-    expect(response.reply_text.toLowerCase()).toContain("nome");
+    const conv = await harness.getLatestConversation();
+    expect(conv!.currentIntent).toBe("BOOK_APPOINTMENT");
+    expect(conv!.collectedData.service_code).toBe("CLAREAMENTO");
+    expect(conv!.missingRequirements).toContain("full_name");
   });
 });
 
@@ -244,26 +258,27 @@ describe("Group B — exact prompt scenarios: greeting + informational", () => {
     harness = new OrchestratorTestHarness();
   });
 
-  it("'olá, como funciona a limpeza?' → no redundant service in prefix", async () => {
+  it("'olá, como funciona a limpeza?' → service info, no booking language", async () => {
     const response = await harness.send("olá, como funciona a limpeza?");
 
-    expect(response.reply_text).toContain("Olá!");
-    // Should NOT say "Posso te ajudar com..." since handler already names the service
-    expect(response.reply_text).not.toContain("agendamento");
+    const conv = await harness.getLatestConversation();
+    expect(conv!.currentIntent).toBe("SERVICE_INFO");
+    expect(response.conversation_state).toBe("AUTO");
   });
 
-  it("'boa noite, clareamento dói?' → greeting + service info", async () => {
+  it("'boa noite, clareamento dói?' → service info", async () => {
     const response = await harness.send("boa noite, clareamento dói?");
 
-    expect(response.reply_text).toContain("Boa noite!");
-    expect(response.reply_text).not.toContain("agendamento");
+    const conv = await harness.getLatestConversation();
+    expect(conv!.currentIntent).toBe("SERVICE_INFO");
+    expect(response.conversation_state).toBe("AUTO");
   });
 
-  it("'bom dia, vocês aceitam convênio?' → greeting + insurance info", async () => {
+  it("'bom dia, vocês aceitam convênio?' → insurance info with convênio", async () => {
     const response = await harness.send("bom dia, vocês aceitam convênio?");
 
-    expect(response.reply_text).toContain("Bom dia!");
     expect(response.reply_text.toLowerCase()).toContain("convênio");
+    expect(response.conversation_state).toBe("AUTO");
   });
 });
 
@@ -276,16 +291,16 @@ describe("Group C — exact prompt scenarios: greeting + urgency", () => {
     harness = new OrchestratorTestHarness();
   });
 
-  it("'oi, estou com dor' → empathetic prefix", async () => {
+  it("'oi, estou com dor' → urgency flow", async () => {
     const response = await harness.send("oi, estou com dor");
-    expect(response.reply_text).toContain("Oi!");
-    expect(response.reply_text).toContain("tranquilo");
+    const conv = await harness.getLatestConversation();
+    expect(conv!.currentIntent).toBe("PAIN_OR_URGENT_CASE");
   });
 
-  it("'boa noite, meu dente quebrou' → empathetic prefix", async () => {
+  it("'boa noite, meu dente quebrou' → urgency flow", async () => {
     const response = await harness.send("boa noite, meu dente quebrou");
-    expect(response.reply_text).toContain("Boa noite!");
-    expect(response.reply_text).toContain("tranquilo");
+    const conv = await harness.getLatestConversation();
+    expect(conv!.currentIntent).toBe("PAIN_OR_URGENT_CASE");
   });
 });
 
@@ -316,7 +331,7 @@ describe("Group D — operational responses stay concise", () => {
   it("human escalation does not get chatty prefix", async () => {
     const response = await harness.send("boa noite, quero falar com um humano");
 
-    // Should NOT have "Boa noite! Posso te ajudar..." prefix
+    // Should NOT have "Posso te ajudar..." prefix
     expect(response.reply_text).not.toContain("Posso te ajudar");
     // Should escalate
     expect(response.conversation_state).toBe("HUMAN");
@@ -326,15 +341,14 @@ describe("Group D — operational responses stay concise", () => {
 // ─── Original reported scenario ────────────────────────────
 
 describe("Original reported scenario", () => {
-  it("'bom, primeiramente boa tarde, gostaria de fazer uma limpeza' → natural response", async () => {
+  it("'bom, primeiramente boa tarde, gostaria de fazer uma limpeza' → booking flow", async () => {
     const harness = new OrchestratorTestHarness();
     const response = await harness.send(
       "bom, primeiramente boa tarde, gostaria de fazer uma limpeza",
     );
 
-    expect(response.reply_text).toContain("Boa tarde!");
-    expect(response.reply_text.toLowerCase()).toContain("nome");
     const conv = await harness.getLatestConversation();
     expect(conv!.currentIntent).toBe("BOOK_APPOINTMENT");
+    expect(conv!.collectedData.service_code).toBe("LIMPEZA");
   });
 });

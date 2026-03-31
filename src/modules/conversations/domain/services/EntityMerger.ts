@@ -9,6 +9,8 @@ export function mergeEntitiesIntoCollectedData(
 
   const fields: Array<keyof LlmEntities> = [
     "full_name",
+    "cpf",
+    "birth_date",
     "phone_number",
     "care_type",
     "insurance_name",

@@ -90,8 +90,8 @@ describe("Unknown fallback escalation", () => {
     await harness.send("asdfg");
     const response3 = await harness.send("xyz123");
 
-    // After 3 attempts, should show the fallback message with escalation offer
-    expect(response3.reply_text.toLowerCase()).toContain("atendente");
+    // After 3 attempts, should show the escalation fact
+    expect(response3.reply_text.toLowerCase()).toContain("múltiplas tentativas");
   });
 
   it("custom max_unknown_before_fallback is respected", async () => {
@@ -127,7 +127,7 @@ describe("Unknown fallback escalation", () => {
     await harness.send("??");
     const response2 = await harness.send("blah");
 
-    // maxUnknown = 2, so after 2nd attempt we get fallback
-    expect(response2.reply_text).toBe("Custom fallback: quer um humano?");
+    // maxUnknown = 2, so after 2nd attempt we get escalation fact
+    expect(response2.reply_text.toLowerCase()).toContain("múltiplas tentativas");
   });
 });
