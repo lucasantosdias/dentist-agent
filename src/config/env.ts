@@ -35,6 +35,13 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional().default(""),
   GOOGLE_WEBHOOK_BASE_URL: z.string().optional().default(""),
   GOOGLE_REDIRECT_URI: z.string().optional().default(""),
+
+  // SMTP (optional — email notifications degrade to console log)
+  SMTP_HOST: z.string().optional().default(""),
+  SMTP_PORT: z.coerce.number().int().optional().default(587),
+  SMTP_USER: z.string().optional().default(""),
+  SMTP_PASS: z.string().optional().default(""),
+  SMTP_FROM: z.string().optional().default(""),
 });
 
 export type Env = z.infer<typeof envSchema>;

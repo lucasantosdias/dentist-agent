@@ -44,8 +44,10 @@ import { InitiateGoogleCalendarConnectionUseCase } from "@/modules/integration/a
 import { HandleGoogleOAuthCallbackUseCase } from "@/modules/integration/application/usecases/HandleGoogleOAuthCallbackUseCase";
 import { DisconnectGoogleCalendarUseCase } from "@/modules/integration/application/usecases/DisconnectGoogleCalendarUseCase";
 import { LogEmailNotificationAdapter } from "@/modules/integration/infrastructure/LogEmailNotificationAdapter";
+import { SmtpEmailNotificationAdapter } from "@/modules/integration/infrastructure/SmtpEmailNotificationAdapter";
 import { LogWhatsAppNotificationAdapter } from "@/modules/integration/infrastructure/LogWhatsAppNotificationAdapter";
 import { CompositeNotificationAdapter } from "@/modules/integration/infrastructure/CompositeNotificationAdapter";
+import type { NotificationPort } from "@/modules/integration/application/ports/NotificationPort";
 import { ProcessOverdueAppointmentsUseCase } from "@/modules/scheduling/application/usecases/ProcessOverdueAppointmentsUseCase";
 import { LookupAvailabilityUseCase } from "@/modules/scheduling/application/usecases/LookupAvailabilityUseCase";
 import { AgentOrchestrator } from "@/modules/conversations/application/usecases/AgentOrchestrator";
@@ -102,10 +104,22 @@ export function getContainer(): AppContainer {
   const calendarWatchChannelRepository = new PrismaCalendarWatchChannelRepository(prisma);
   const calendarSyncStateRepository = new PrismaCalendarSyncStateRepository(prisma);
 
-  // Notification adapters (always available — log-based for now)
-  const emailAdapter = new LogEmailNotificationAdapter();
+  // Notification adapters — SMTP if configured, otherwise console log
+  const emailAdapter: NotificationPort = env.SMTP_HOST
+    ? new SmtpEmailNotificationAdapter({
+        host: env.SMTP_HOST,
+        port: env.SMTP_PORT,
+        user: env.SMTP_USER,
+        pass: env.SMTP_PASS,
+        from: env.SMTP_FROM || env.SMTP_USER,
+      })
+    : new LogEmailNotificationAdapter();
   const whatsappAdapter = new LogWhatsAppNotificationAdapter();
   const notificationAdapter = new CompositeNotificationAdapter(emailAdapter, whatsappAdapter);
+
+  if (env.SMTP_HOST) {
+    console.log(`[Container] SMTP email enabled via ${env.SMTP_HOST}:${env.SMTP_PORT}`);
+  }
 
   const policies = new SchedulingPolicies({
     holdTtlMinutes: env.SCHEDULING_HOLD_TTL_MINUTES,

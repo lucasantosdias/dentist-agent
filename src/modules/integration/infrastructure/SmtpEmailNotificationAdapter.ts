@@ -1,0 +1,82 @@
+import nodemailer from "nodemailer";
+import type { NotificationPort, SendNotificationInput } from "@/modules/integration/application/ports/NotificationPort";
+
+export type SmtpConfig = {
+  host: string;
+  port: number;
+  user: string;
+  pass: string;
+  from: string;
+};
+
+export class SmtpEmailNotificationAdapter implements NotificationPort {
+  private readonly transporter: nodemailer.Transporter;
+  private readonly from: string;
+
+  constructor(config: SmtpConfig) {
+    this.from = config.from;
+    this.transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.port === 465,
+      auth: {
+        user: config.user,
+        pass: config.pass,
+      },
+    });
+  }
+
+  async send(input: SendNotificationInput): Promise<{ sent: boolean; error?: string }> {
+    if (input.channel !== "email") {
+      return { sent: false, error: "SmtpEmailNotificationAdapter only handles email channel" };
+    }
+
+    try {
+      const html = this.renderTemplate(input.templateKey, input.data);
+
+      await this.transporter.sendMail({
+        from: this.from,
+        to: input.recipient,
+        subject: input.subject ?? input.templateKey,
+        html,
+      });
+
+      return { sent: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "SMTP send failed";
+      console.error("SMTP email send failed:", message);
+      return { sent: false, error: message };
+    }
+  }
+
+  private renderTemplate(templateKey: string, data: Record<string, string>): string {
+    if (templateKey === "google-calendar-link") {
+      return `
+        <div style="font-family:-apple-system,system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px">
+          <h2 style="color:#1a1a1a;margin-bottom:8px">Dentzi AI</h2>
+          <p style="color:#555;font-size:16px;line-height:1.6">
+            Ola, <strong>${data.professional_name ?? ""}</strong>!
+          </p>
+          <p style="color:#555;font-size:16px;line-height:1.6">
+            Clique no botao abaixo para conectar seu Google Calendar ao sistema de agendamentos da clinica.
+          </p>
+          <div style="text-align:center;margin:32px 0">
+            <a href="${data.oauth_url ?? "#"}"
+               style="background:#1677ff;color:white;padding:12px 32px;border-radius:8px;text-decoration:none;font-size:16px;display:inline-block">
+              Conectar Google Calendar
+            </a>
+          </div>
+          <p style="color:#999;font-size:13px">
+            Este link expira em 1 hora. Se voce nao solicitou esta conexao, ignore este email.
+          </p>
+        </div>
+      `;
+    }
+
+    // Fallback: render data as key-value pairs
+    const lines = Object.entries(data)
+      .map(([k, v]) => `<p><strong>${k}:</strong> ${v}</p>`)
+      .join("");
+    return `<div style="font-family:sans-serif;padding:16px">${lines}</div>`;
+  }
+}
