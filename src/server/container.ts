@@ -10,6 +10,7 @@ import { PrismaMessageRepository } from "@/modules/conversations/infrastructure/
 import { PrismaProcessedInboundRepository } from "@/modules/conversations/infrastructure/PrismaProcessedInboundRepository";
 import { PrismaOutboxRepository } from "@/modules/integration/infrastructure/PrismaOutboxRepository";
 import { PrismaKnowledgeRepository } from "@/modules/knowledge/infrastructure/PrismaKnowledgeRepository";
+import { RescheduleAppointmentUseCase } from "@/modules/scheduling/application/usecases/RescheduleAppointmentUseCase";
 import { PrismaPatientRepository } from "@/modules/patients/infrastructure/PrismaPatientRepository";
 import { CancelAppointmentUseCase } from "@/modules/scheduling/application/usecases/CancelAppointmentUseCase";
 import { ConfirmAppointmentUseCase } from "@/modules/scheduling/application/usecases/ConfirmAppointmentUseCase";
@@ -39,19 +40,37 @@ import { CheckGoogleCalendarFreeBusyUseCase } from "@/modules/integration/applic
 import { RunCalendarIncrementalSyncUseCase } from "@/modules/integration/application/usecases/RunCalendarIncrementalSyncUseCase";
 import { ProcessCalendarWebhookUseCase } from "@/modules/integration/application/usecases/ProcessCalendarWebhookUseCase";
 import { ProcessCalendarOutboxUseCase } from "@/modules/integration/application/usecases/ProcessCalendarOutboxUseCase";
+import { InitiateGoogleCalendarConnectionUseCase } from "@/modules/integration/application/usecases/InitiateGoogleCalendarConnectionUseCase";
+import { HandleGoogleOAuthCallbackUseCase } from "@/modules/integration/application/usecases/HandleGoogleOAuthCallbackUseCase";
+import { DisconnectGoogleCalendarUseCase } from "@/modules/integration/application/usecases/DisconnectGoogleCalendarUseCase";
+import { LogEmailNotificationAdapter } from "@/modules/integration/infrastructure/LogEmailNotificationAdapter";
+import { LogWhatsAppNotificationAdapter } from "@/modules/integration/infrastructure/LogWhatsAppNotificationAdapter";
+import { CompositeNotificationAdapter } from "@/modules/integration/infrastructure/CompositeNotificationAdapter";
+import { ProcessOverdueAppointmentsUseCase } from "@/modules/scheduling/application/usecases/ProcessOverdueAppointmentsUseCase";
+import { LookupAvailabilityUseCase } from "@/modules/scheduling/application/usecases/LookupAvailabilityUseCase";
+import { AgentOrchestrator } from "@/modules/conversations/application/usecases/AgentOrchestrator";
+import { createAgentExecutor } from "@/modules/ai/infrastructure/createAgentExecutor";
+import type { OrchestratorPort } from "@/modules/conversations/application/ports/OrchestratorPort";
 
 export type AppContainer = {
-  conversationOrchestrator: ConversationOrchestrator;
+  conversationOrchestrator: OrchestratorPort;
   // Scheduling — availability
   createAvailabilityRuleUseCase: CreateAvailabilityRuleUseCase;
   createAvailabilityExceptionUseCase: CreateAvailabilityExceptionUseCase;
   generateAvailableSlotsUseCase: GenerateAvailableSlotsUseCase;
+  // Scheduling — lifecycle
+  processOverdueAppointmentsUseCase: ProcessOverdueAppointmentsUseCase;
+  noShowGraceMinutes: number;
   // Integration — Google Calendar (null if not configured)
   connectGoogleCalendarUseCase: ConnectGoogleCalendarUseCase | null;
   checkGoogleCalendarFreeBusyUseCase: CheckGoogleCalendarFreeBusyUseCase | null;
   runCalendarIncrementalSyncUseCase: RunCalendarIncrementalSyncUseCase | null;
   processCalendarWebhookUseCase: ProcessCalendarWebhookUseCase | null;
   processCalendarOutboxUseCase: ProcessCalendarOutboxUseCase | null;
+  initiateGoogleCalendarConnectionUseCase: InitiateGoogleCalendarConnectionUseCase | null;
+  handleGoogleOAuthCallbackUseCase: HandleGoogleOAuthCallbackUseCase | null;
+  disconnectGoogleCalendarUseCase: DisconnectGoogleCalendarUseCase | null;
+  notificationAdapter: CompositeNotificationAdapter;
 };
 
 let cachedContainer: AppContainer | null = null;
@@ -82,6 +101,11 @@ export function getContainer(): AppContainer {
   const calendarConnectionRepository = new PrismaCalendarConnectionRepository(prisma);
   const calendarWatchChannelRepository = new PrismaCalendarWatchChannelRepository(prisma);
   const calendarSyncStateRepository = new PrismaCalendarSyncStateRepository(prisma);
+
+  // Notification adapters (always available — log-based for now)
+  const emailAdapter = new LogEmailNotificationAdapter();
+  const whatsappAdapter = new LogWhatsAppNotificationAdapter();
+  const notificationAdapter = new CompositeNotificationAdapter(emailAdapter, whatsappAdapter);
 
   const policies = new SchedulingPolicies({
     holdTtlMinutes: env.SCHEDULING_HOLD_TTL_MINUTES,
@@ -130,6 +154,16 @@ export function getContainer(): AppContainer {
 
   const confirmPresenceUseCase = new ConfirmPresenceUseCase(appointmentRepository, catalogRepository);
 
+  const rescheduleAppointmentUseCase = new RescheduleAppointmentUseCase(
+    appointmentRepository,
+    catalogRepository,
+    outboxRepository,
+    availabilityRepository,
+    policies,
+    patientRepository,
+    proposeSlotsUseCase,
+  );
+
   // New availability use cases
   const createAvailabilityRuleUseCase = new CreateAvailabilityRuleUseCase(
     availabilityRuleRepository,
@@ -157,6 +191,9 @@ export function getContainer(): AppContainer {
   let runCalendarIncrementalSyncUseCase: RunCalendarIncrementalSyncUseCase | null = null;
   let processCalendarWebhookUseCase: ProcessCalendarWebhookUseCase | null = null;
   let processCalendarOutboxUseCase: ProcessCalendarOutboxUseCase | null = null;
+  let initiateGoogleCalendarConnectionUseCase: InitiateGoogleCalendarConnectionUseCase | null = null;
+  let handleGoogleOAuthCallbackUseCase: HandleGoogleOAuthCallbackUseCase | null = null;
+  let disconnectGoogleCalendarUseCase: DisconnectGoogleCalendarUseCase | null = null;
 
   if (googleCalendar) {
     connectGoogleCalendarUseCase = new ConnectGoogleCalendarUseCase(
@@ -194,6 +231,32 @@ export function getContainer(): AppContainer {
       prisma,
       env.APP_TIMEZONE,
     );
+
+    const redirectUri = env.GOOGLE_REDIRECT_URI ||
+      `${env.GOOGLE_WEBHOOK_BASE_URL}/api/integrations/google-calendar/callback`;
+
+    initiateGoogleCalendarConnectionUseCase = new InitiateGoogleCalendarConnectionUseCase(
+      catalogRepository,
+      calendarConnectionRepository,
+      env.GOOGLE_CLIENT_ID,
+      env.GOOGLE_CLIENT_SECRET,
+      redirectUri,
+    );
+
+    handleGoogleOAuthCallbackUseCase = new HandleGoogleOAuthCallbackUseCase(
+      catalogRepository,
+      googleCalendar,
+      connectGoogleCalendarUseCase!,
+      env.GOOGLE_CLIENT_SECRET,
+      redirectUri,
+    );
+
+    disconnectGoogleCalendarUseCase = new DisconnectGoogleCalendarUseCase(
+      calendarConnectionRepository,
+      calendarWatchChannelRepository,
+      calendarSyncStateRepository,
+      availabilityExceptionRepository,
+    );
   }
 
   // Clinic settings
@@ -207,6 +270,9 @@ export function getContainer(): AppContainer {
     provider: env.LLM_PROVIDER,
     ollamaBaseUrl: env.OLLAMA_BASE_URL,
     ollamaModel: env.OLLAMA_MODEL,
+    openAiApiKey: env.OPENAI_API_KEY,
+    openAiModel: env.OPENAI_MODEL,
+    openAiBaseUrl: env.OPENAI_BASE_URL,
   });
 
   const llmInterpreter = createLlmInterpreter({
@@ -240,6 +306,7 @@ export function getContainer(): AppContainer {
     {
       execute: (input) => cancelAppointmentUseCase.execute({
         patient_id: input.patient_id,
+        all_patient_ids: input.all_patient_ids,
         requested_datetime_iso: input.requested_datetime_iso,
         reason: input.reason,
         now: input.now,
@@ -248,6 +315,7 @@ export function getContainer(): AppContainer {
     {
       execute: (input) => confirmPresenceUseCase.execute({
         patient_id: input.patient_id,
+        all_patient_ids: input.all_patient_ids,
         requested_datetime_iso: input.requested_datetime_iso,
         now: input.now,
       }),
@@ -257,18 +325,80 @@ export function getContainer(): AppContainer {
     clinicSettingsRepository,
     responseGenerator,
     knowledgeRepository,
+    {
+      execute: (input) => rescheduleAppointmentUseCase.execute({
+        patient_id: input.patient_id,
+        all_patient_ids: input.all_patient_ids,
+        clinic_id: input.clinic_id,
+        patient_name: input.patient_name,
+        patient_cpf: input.patient_cpf,
+        requested_datetime_iso: input.requested_datetime_iso,
+        new_datetime_iso: input.new_datetime_iso,
+        now: input.now,
+      }),
+    },
+  );
+
+  // Agent mode: create AgentOrchestrator when AGENT_MODE=agent
+  let orchestrator: OrchestratorPort = conversationOrchestrator;
+  if (env.AGENT_MODE === "agent") {
+    const agentExecutor = createAgentExecutor({
+      provider: env.LLM_PROVIDER,
+      ollamaBaseUrl: env.OLLAMA_BASE_URL,
+      ollamaModel: env.OLLAMA_MODEL,
+      openAiApiKey: env.OPENAI_API_KEY,
+      openAiModel: env.OPENAI_MODEL,
+      openAiBaseUrl: env.OPENAI_BASE_URL,
+    });
+
+    const lookupAvailabilityUseCase = new LookupAvailabilityUseCase(
+      catalogRepository,
+      proposeSlotsUseCase,
+      policies,
+    );
+
+    orchestrator = new AgentOrchestrator(
+      processedInboundRepository,
+      patientRepository,
+      conversationRepository,
+      messageRepository,
+      { execute: (clinicId: string) => getCatalogSnapshotUseCase.execute(clinicId) },
+      catalogRepository,
+      agentExecutor,
+      lookupAvailabilityUseCase,
+      createHoldUseCase,
+      confirmAppointmentUseCase,
+      cancelAppointmentUseCase,
+      confirmPresenceUseCase,
+      env.MESSAGE_CONTEXT_LIMIT,
+      clinicSettingsRepository,
+      knowledgeRepository,
+      rescheduleAppointmentUseCase,
+    );
+
+    console.log("[Container] Agent mode enabled — using AgentOrchestrator with tool calling");
+  }
+
+  const processOverdueAppointmentsUseCase = new ProcessOverdueAppointmentsUseCase(
+    appointmentRepository,
   );
 
   cachedContainer = {
-    conversationOrchestrator,
+    conversationOrchestrator: orchestrator,
     createAvailabilityRuleUseCase,
     createAvailabilityExceptionUseCase,
     generateAvailableSlotsUseCase,
+    processOverdueAppointmentsUseCase,
+    noShowGraceMinutes: env.NO_SHOW_GRACE_MINUTES,
     connectGoogleCalendarUseCase,
     checkGoogleCalendarFreeBusyUseCase,
     runCalendarIncrementalSyncUseCase,
     processCalendarWebhookUseCase,
     processCalendarOutboxUseCase,
+    initiateGoogleCalendarConnectionUseCase,
+    handleGoogleOAuthCallbackUseCase,
+    disconnectGoogleCalendarUseCase,
+    notificationAdapter,
   };
 
   return cachedContainer;
