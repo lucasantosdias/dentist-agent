@@ -6,9 +6,10 @@ const envSchema = z.object({
   DIRECT_DATABASE_URL: z.string().optional(),
   REDIS_URL: z.string().optional(),
 
+  AGENT_MODE: z.enum(["agent", "classic"]).default("classic"),
   LLM_PROVIDER: z.enum(["ollama", "openai", "mock"]).default("ollama"),
   OLLAMA_BASE_URL: z.string().default("http://host.docker.internal:11434"),
-  OLLAMA_MODEL: z.string().default("qwen2.5:7b-instruct"),
+  OLLAMA_MODEL: z.string().default("qwen3:30b-a3b"),
 
   OPENAI_API_KEY: z.string().optional().default(""),
   OPENAI_MODEL: z.string().default("qwen2.5:7b"),
@@ -22,6 +23,7 @@ const envSchema = z.object({
   SCHEDULING_SLOT_STEP_MINUTES: z.coerce.number().int().positive().default(30),
   WORKING_HOUR_START: z.coerce.number().int().min(0).max(23).default(8),
   WORKING_HOUR_END: z.coerce.number().int().min(1).max(24).default(19),
+  NO_SHOW_GRACE_MINUTES: z.coerce.number().int().min(0).default(30),
 
   MESSAGE_CONTEXT_LIMIT: z.coerce.number().int().positive().default(20),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
@@ -32,6 +34,7 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional().default(""),
   GOOGLE_CLIENT_SECRET: z.string().optional().default(""),
   GOOGLE_WEBHOOK_BASE_URL: z.string().optional().default(""),
+  GOOGLE_REDIRECT_URI: z.string().optional().default(""),
 });
 
 export type Env = z.infer<typeof envSchema>;
