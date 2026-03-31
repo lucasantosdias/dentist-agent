@@ -22,6 +22,7 @@ import {
 import { ProfessionalForm } from "./ProfessionalForm";
 import { WeeklyScheduleGrid } from "./WeeklyScheduleGrid";
 import { ProfessionalServicesTab } from "./ProfessionalServicesTab";
+import { GoogleCalendarTab } from "./GoogleCalendarTab";
 import { api } from "@/lib/api";
 
 const { Text } = Typography;
@@ -463,6 +464,15 @@ export function ProfessionalDrawer({
                     />
                   </div>
                 ),
+              },
+              {
+                key: "google-calendar",
+                label: "Google Calendar",
+                children: professional ? (
+                  <GoogleCalendarTab
+                    professional={professional}
+                  />
+                ) : null,
               },
             ]}
           />
