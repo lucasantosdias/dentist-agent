@@ -245,7 +245,7 @@ export function ProfessionalDrawer({
         header: { display: "none" },
         body: { padding: 0 },
       }}
-      destroyOnClose
+      destroyOnHidden
     >
       {professional && (
         <>

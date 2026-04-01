@@ -197,7 +197,7 @@ export default function UsersPage() {
         open={inviteOpen}
         onCancel={() => { setInviteOpen(false); form.resetFields(); }}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={handleInvite} style={{ marginTop: 16 }}>
           <Form.Item name="name" label="Nome" rules={[{ required: true, message: "Informe o nome" }]}>

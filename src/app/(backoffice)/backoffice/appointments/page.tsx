@@ -271,7 +271,7 @@ export default function AppointmentsPage() {
         open={createOpen}
         onCancel={() => { setCreateOpen(false); createForm.resetFields(); }}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
         width={520}
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreate} style={{ marginTop: 16 }}>

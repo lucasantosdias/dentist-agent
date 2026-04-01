@@ -464,7 +464,7 @@ export default function ProfessionalsPage() {
         confirmLoading={creating}
         okText="Criar"
         cancelText="Cancelar"
-        destroyOnClose
+        destroyOnHidden
         width={520}
       >
         <Form
