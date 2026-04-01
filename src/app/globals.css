@@ -29,6 +29,21 @@ html, body { height: 100%; font-family: 'Inter', -apple-system, BlinkMacSystemFo
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
+/* Dark clinic selector in sidebar */
+.clinic-selector-dark .ant-select-selection-item {
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-weight: 500;
+  font-size: 13px;
+}
+.clinic-selector-dark .ant-select-selector {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-radius: 8px !important;
+  padding: 2px 8px !important;
+}
+.clinic-selector-dark:hover .ant-select-selector {
+  background: rgba(255, 255, 255, 0.14) !important;
+}
+
 /* Table row cursor */
 .clickable-row { cursor: pointer; }
 .clickable-row:hover td { background: #f1f5f9 !important; }

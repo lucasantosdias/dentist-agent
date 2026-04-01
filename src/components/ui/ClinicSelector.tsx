@@ -38,12 +38,17 @@ export function ClinicSelector({ collapsed }: { collapsed?: boolean }) {
     <Select
       value={activeClinicId ?? undefined}
       onChange={setActiveClinicId}
-      style={{ width: "100%" }}
-      size="small"
-      variant="filled"
+      style={{
+        width: "100%",
+        background: "rgba(255,255,255,0.1)",
+        borderRadius: 8,
+      }}
+      size="middle"
+      variant="borderless"
       options={clinics.map((c) => ({ value: c.id, label: c.name }))}
-      suffixIcon={<ShopOutlined style={{ color: "#3b82f6" }} />}
+      suffixIcon={<ShopOutlined style={{ color: "#60a5fa" }} />}
       popupMatchSelectWidth={false}
+      className="clinic-selector-dark"
     />
   );
 }
