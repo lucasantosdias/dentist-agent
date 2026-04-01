@@ -69,6 +69,11 @@ const menuItems: MenuProps["items"] = [
     label: "AI Simulador",
   },
   {
+    key: "/backoffice/users",
+    icon: <CustomerServiceOutlined />,
+    label: "Usuarios",
+  },
+  {
     key: "/backoffice/settings",
     icon: <SettingOutlined />,
     label: "Configuracoes",
