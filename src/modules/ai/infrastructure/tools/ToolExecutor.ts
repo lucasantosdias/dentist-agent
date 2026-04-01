@@ -155,8 +155,8 @@ export class ToolExecutor {
 
   private async reserveSlot(args: Record<string, unknown>): Promise<Record<string, unknown>> {
     const { professional_id, service_id, starts_at, ends_at } = z.object({
-      professional_id: z.string(),
-      service_id: z.string(),
+      professional_id: z.string().uuid("professional_id deve ser um UUID valido — copie de check_availability"),
+      service_id: z.string().uuid("service_id deve ser um UUID valido — copie de check_availability"),
       starts_at: z.string(),
       ends_at: z.string(),
     }).parse(args);

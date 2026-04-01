@@ -52,12 +52,12 @@ export const AGENT_TOOLS: AgentToolDefinition[] = [
     type: "function",
     function: {
       name: "reserve_slot",
-      description: "Reserva temporariamente um horário para o paciente. A reserva expira em alguns minutos. O paciente DEVE confirmar com 'CONFIRMO' antes de chamar confirm_appointment. Requer: professional_id, service_id, starts_at, ends_at.",
+      description: "Reserva temporariamente um horário para o paciente. A reserva expira em alguns minutos. O paciente DEVE confirmar com 'CONFIRMO' antes de chamar confirm_appointment. IMPORTANTE: Copie professional_id, service_id, starts_at e ends_at EXATAMENTE do resultado de check_availability — NÃO invente IDs.",
       parameters: {
         type: "object",
         properties: {
-          professional_id: { type: "string", description: "ID do profissional" },
-          service_id: { type: "string", description: "ID do serviço" },
+          professional_id: { type: "string", description: "UUID do profissional (copiar de check_availability)" },
+          service_id: { type: "string", description: "UUID do serviço (copiar de check_availability)" },
           starts_at: { type: "string", description: "Início do horário ISO 8601" },
           ends_at: { type: "string", description: "Fim do horário ISO 8601" },
         },
