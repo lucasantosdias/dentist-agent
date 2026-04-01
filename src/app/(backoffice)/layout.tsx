@@ -23,6 +23,8 @@ import {
 import type { MenuProps } from "antd";
 import { ClinicProvider } from "@/hooks/useClinicContext";
 import { ClinicSelector } from "@/components/ui/ClinicSelector";
+import { useSession, signOut } from "next-auth/react";
+import { SessionProvider } from "@/components/providers/SessionProvider";
 
 const { Sider, Header, Content } = Layout;
 const { Text } = Typography;
@@ -77,6 +79,7 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session } = useSession();
 
   const selectedKey = menuItems
     ?.filter((item): item is { key: string } => item !== null && "key" in item && typeof item.key === "string")
@@ -85,6 +88,7 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
     .sort((a, b) => b.length - a.length)[0] || "/backoffice";
 
   return (
+    <SessionProvider>
     <ClinicProvider>
       <Layout style={{ minHeight: "100vh" }}>
         <Sider
@@ -224,6 +228,7 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
                 icon={<LogoutOutlined />}
                 style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, paddingLeft: collapsed ? 0 : 8 }}
                 size="small"
+                onClick={() => signOut({ callbackUrl: "/login" })}
               >
                 {!collapsed && "Sair"}
               </Button>
@@ -302,10 +307,10 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
                   style={{ background: "linear-gradient(135deg, #2563eb, #3b82f6)" }}
                   icon={<UserOutlined />}
                 />
-                {!collapsed && (
+                {!collapsed && session?.user && (
                   <div style={{ lineHeight: 1.2 }}>
-                    <Text strong style={{ fontSize: 13, display: "block" }}>Admin</Text>
-                    <Text type="secondary" style={{ fontSize: 11 }}>Gerente</Text>
+                    <Text strong style={{ fontSize: 13, display: "block" }}>{session.user.name}</Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>{session.user.role}</Text>
                   </div>
                 )}
               </Flex>
@@ -318,5 +323,6 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
         </Layout>
       </Layout>
     </ClinicProvider>
+    </SessionProvider>
   );
 }
