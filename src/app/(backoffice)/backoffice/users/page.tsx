@@ -24,6 +24,7 @@ import {
   StopOutlined,
 } from "@ant-design/icons";
 import { useSession } from "next-auth/react";
+import { useClinicContext } from "@/hooks/useClinicContext";
 import { api } from "@/lib/api";
 
 const { Title } = Typography;
@@ -56,12 +57,15 @@ const ROLE_LABELS: Record<string, string> = {
 export default function UsersPage() {
   const { message } = App.useApp();
   const { data: session } = useSession();
+  const { activeClinicId } = useClinicContext();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [form] = Form.useForm();
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [professionals, setProfessionals] = useState<Array<{ id: string; display_name: string }>>([]);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -86,12 +90,27 @@ export default function UsersPage() {
       (ROLE_LABELS[u.role] ?? u.role).toLowerCase().includes(search.toLowerCase()),
   );
 
-  const handleInvite = async (values: { email: string; name: string; role: string }) => {
+  const loadProfessionals = async () => {
+    if (!activeClinicId) return;
+    try {
+      const data = await api<Array<{ id: string; display_name: string }>>(`/api/admin/clinics/${activeClinicId}/professionals`);
+      setProfessionals(data);
+    } catch {
+      // silent — optional field
+    }
+  };
+
+  const handleInvite = async (values: { email: string; name: string; role: string; professionalId?: string }) => {
     setInviting(true);
     try {
       await api("/api/admin/users/invite", {
         method: "POST",
-        body: values,
+        body: {
+          email: values.email,
+          name: values.name,
+          role: values.role,
+          professionalId: values.professionalId || undefined,
+        },
       });
       message.success(`Convite enviado para ${values.email}`);
       setInviteOpen(false);
@@ -195,7 +214,7 @@ export default function UsersPage() {
       <Modal
         title="Convidar usuario"
         open={inviteOpen}
-        onCancel={() => { setInviteOpen(false); form.resetFields(); }}
+        onCancel={() => { setInviteOpen(false); form.resetFields(); setSelectedRole(null); }}
         footer={null}
         destroyOnHidden
       >
@@ -220,8 +239,38 @@ export default function UsersPage() {
                 value: r,
                 label: ROLE_LABELS[r] ?? r,
               }))}
+              onChange={(value) => {
+                setSelectedRole(value);
+                if (value === "PROFESSIONAL" || value === "ADMIN") {
+                  loadProfessionals();
+                }
+                if (value !== "PROFESSIONAL") {
+                  form.setFieldValue("professionalId", undefined);
+                }
+              }}
             />
           </Form.Item>
+
+          {(selectedRole === "PROFESSIONAL" || selectedRole === "ADMIN") && (
+            <Form.Item
+              name="professionalId"
+              label={selectedRole === "PROFESSIONAL" ? "Profissional vinculado" : "Tambem e profissional? (opcional)"}
+              rules={selectedRole === "PROFESSIONAL" ? [{ required: true, message: "Selecione o profissional" }] : []}
+              extra={selectedRole === "ADMIN" ? "Deixe em branco se o admin nao atende pacientes" : undefined}
+            >
+              <Select
+                showSearch
+                allowClear
+                placeholder="Selecione o profissional..."
+                optionFilterProp="label"
+                options={professionals.map((p) => ({
+                  value: p.id,
+                  label: p.display_name,
+                }))}
+              />
+            </Form.Item>
+          )}
+
           <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
             <Space>
               <Button onClick={() => { setInviteOpen(false); form.resetFields(); }}>

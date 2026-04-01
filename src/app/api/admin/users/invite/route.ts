@@ -47,11 +47,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Email ja cadastrado" }, { status: 409 });
     }
 
-    // If PROFESSIONAL, professionalId is required
-    if (role === "PROFESSIONAL") {
-      if (!professionalId) {
-        return NextResponse.json({ error: "professionalId e obrigatorio para profissionais" }, { status: 400 });
-      }
+    // Validate professionalId if provided
+    if (role === "PROFESSIONAL" && !professionalId) {
+      return NextResponse.json({ error: "professionalId e obrigatorio para profissionais" }, { status: 400 });
+    }
+
+    if (professionalId) {
       const professional = await prisma.professional.findUnique({ where: { id: professionalId } });
       if (!professional) {
         return NextResponse.json({ error: "Profissional nao encontrado" }, { status: 404 });
@@ -62,13 +63,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const rawToken = randomBytes(32).toString("hex");
     const hashedToken = createHash("sha256").update(rawToken).digest("hex");
 
-    // Create user
+    // Create user — PROFESSIONAL and ADMIN can have a linked professional
+    const linkProfessional = (role === "PROFESSIONAL" || role === "ADMIN") && professionalId;
+
     const user = await prisma.user.create({
       data: {
         email: email.toLowerCase().trim(),
         name,
         role,
-        professionalId: role === "PROFESSIONAL" ? professionalId : null,
+        professionalId: linkProfessional ? professionalId : null,
         inviteToken: hashedToken,
         inviteExpiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000),
       },
