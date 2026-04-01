@@ -8,13 +8,11 @@ import {
   UserOutlined,
   MedicineBoxOutlined,
   ScheduleOutlined,
-  ArrowUpOutlined,
   ClockCircleOutlined,
   RiseOutlined,
   PlusOutlined,
-  PhoneOutlined,
-  SyncOutlined,
 } from "@ant-design/icons";
+import { useRouter } from "next/navigation";
 import { useClinicContext } from "@/hooks/useClinicContext";
 import { useApi } from "@/hooks/useApi";
 
@@ -37,6 +35,7 @@ const STAT_CONFIGS = [
     icon: <CalendarOutlined />,
     color: "#2563eb",
     bg: "#eff6ff",
+    href: "/backoffice/appointments",
   },
   {
     key: "patients_count",
@@ -44,6 +43,7 @@ const STAT_CONFIGS = [
     icon: <UserOutlined />,
     color: "#16a34a",
     bg: "#f0fdf4",
+    href: "/backoffice/patients",
   },
   {
     key: "appointments_upcoming",
@@ -51,6 +51,7 @@ const STAT_CONFIGS = [
     icon: <ScheduleOutlined />,
     color: "#9333ea",
     bg: "#faf5ff",
+    href: "/backoffice/appointments",
   },
   {
     key: "conversations_active",
@@ -58,6 +59,7 @@ const STAT_CONFIGS = [
     icon: <MessageOutlined />,
     color: "#ea580c",
     bg: "#fff7ed",
+    href: "/backoffice/conversations",
   },
   {
     key: "professionals_count",
@@ -65,6 +67,7 @@ const STAT_CONFIGS = [
     icon: <TeamOutlined />,
     color: "#0891b2",
     bg: "#ecfeff",
+    href: "/backoffice/professionals",
   },
   {
     key: "services_count",
@@ -72,17 +75,19 @@ const STAT_CONFIGS = [
     icon: <MedicineBoxOutlined />,
     color: "#ca8a04",
     bg: "#fefce8",
+    href: "/backoffice/services",
   },
 ];
 
 const QUICK_ACTIONS = [
-  { icon: <PlusOutlined />, label: "Novo Paciente", color: "#2563eb", bg: "#eff6ff" },
-  { icon: <CalendarOutlined />, label: "Agendar", color: "#16a34a", bg: "#f0fdf4" },
-  { icon: <PhoneOutlined />, label: "Fila de Espera", color: "#ea580c", bg: "#fff7ed" },
-  { icon: <SyncOutlined />, label: "Nível de Estoque", color: "#9333ea", bg: "#faf5ff" },
+  { icon: <PlusOutlined />, label: "Novo Agendamento", color: "#2563eb", bg: "#eff6ff", href: "/backoffice/appointments?new=true" },
+  { icon: <UserOutlined />, label: "Pacientes", color: "#16a34a", bg: "#f0fdf4", href: "/backoffice/patients" },
+  { icon: <MessageOutlined />, label: "Conversas", color: "#ea580c", bg: "#fff7ed", href: "/backoffice/conversations" },
+  { icon: <TeamOutlined />, label: "Profissionais", color: "#9333ea", bg: "#faf5ff", href: "/backoffice/professionals" },
 ];
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { activeClinic, activeClinicId, loading: clinicLoading } = useClinicContext();
 
   const { data: stats, loading, error } = useApi<DashboardStats>(
@@ -131,8 +136,9 @@ export default function DashboardPage() {
                 <Card
                   className="stat-card"
                   size="small"
-                  style={{ borderRadius: 12, border: "1px solid #e2e8f0" }}
+                  style={{ borderRadius: 12, border: "1px solid #e2e8f0", cursor: "pointer" }}
                   styles={{ body: { padding: "16px 20px" } }}
+                  onClick={() => router.push(cfg.href)}
                 >
                   <Flex align="flex-start" justify="space-between">
                     <div>
@@ -225,6 +231,7 @@ export default function DashboardPage() {
                   {QUICK_ACTIONS.map((action) => (
                     <Col span={12} key={action.label}>
                       <Button
+                        onClick={() => router.push(action.href)}
                         style={{
                           width: "100%",
                           height: 72,
@@ -266,7 +273,7 @@ export default function DashboardPage() {
                     <ClockCircleOutlined style={{ marginRight: 6 }} />
                     Fila ({stats.appointments_today})
                   </Text>
-                  <Button type="link" size="small" style={{ fontSize: 12, padding: 0 }}>Ver Tudo</Button>
+                  <Button type="link" size="small" style={{ fontSize: 12, padding: 0 }} onClick={() => router.push("/backoffice/appointments")}>Ver Tudo</Button>
                 </Flex>
 
                 <Flex vertical gap={10}>
