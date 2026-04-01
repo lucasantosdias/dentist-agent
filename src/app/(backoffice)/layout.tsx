@@ -32,53 +32,29 @@ const { Text } = Typography;
 const SIDEBAR_BG = "#0f172a";
 const SIDEBAR_DARK = "#0b1120";
 
-const menuItems: MenuProps["items"] = [
-  {
-    key: "/backoffice",
-    icon: <DashboardOutlined />,
-    label: "Dashboard",
-  },
-  {
-    key: "/backoffice/appointments",
-    icon: <CalendarOutlined />,
-    label: "Agendamentos",
-  },
-  {
-    key: "/backoffice/patients",
-    icon: <UserOutlined />,
-    label: "Pacientes",
-  },
-  {
-    key: "/backoffice/professionals",
-    icon: <TeamOutlined />,
-    label: "Profissionais",
-  },
-  {
-    key: "/backoffice/services",
-    icon: <MedicineBoxOutlined />,
-    label: "Serviços",
-  },
-  {
-    key: "/backoffice/conversations",
-    icon: <MessageOutlined />,
-    label: "Conversas",
-  },
-  {
-    key: "/backoffice/test-mode",
-    icon: <ExperimentOutlined />,
-    label: "AI Simulador",
-  },
-  {
-    key: "/backoffice/users",
-    icon: <CustomerServiceOutlined />,
-    label: "Usuarios",
-  },
-  {
-    key: "/backoffice/settings",
-    icon: <SettingOutlined />,
-    label: "Configuracoes",
-  },
+type UserRole = "SUPERADMIN" | "ADMIN" | "PROFESSIONAL" | "ATTENDANT";
+
+const ALL_ROLES: UserRole[] = ["SUPERADMIN", "ADMIN", "PROFESSIONAL", "ATTENDANT"];
+const ADMIN_UP: UserRole[] = ["SUPERADMIN", "ADMIN"];
+
+const allMenuItems: Array<{ key: string; icon: React.ReactNode; label: string; roles: UserRole[] }> = [
+  { key: "/backoffice", icon: <DashboardOutlined />, label: "Dashboard", roles: ALL_ROLES },
+  { key: "/backoffice/appointments", icon: <CalendarOutlined />, label: "Agendamentos", roles: ALL_ROLES },
+  { key: "/backoffice/patients", icon: <UserOutlined />, label: "Pacientes", roles: ALL_ROLES },
+  { key: "/backoffice/professionals", icon: <TeamOutlined />, label: "Profissionais", roles: ADMIN_UP },
+  { key: "/backoffice/services", icon: <MedicineBoxOutlined />, label: "Serviços", roles: ADMIN_UP },
+  { key: "/backoffice/conversations", icon: <MessageOutlined />, label: "Conversas", roles: [...ADMIN_UP, "ATTENDANT"] },
+  { key: "/backoffice/test-mode", icon: <ExperimentOutlined />, label: "AI Simulador", roles: ADMIN_UP },
+  { key: "/backoffice/users", icon: <CustomerServiceOutlined />, label: "Usuarios", roles: ADMIN_UP },
+  { key: "/backoffice/settings", icon: <SettingOutlined />, label: "Configuracoes", roles: ADMIN_UP },
 ];
+
+function getMenuItems(role: UserRole | undefined): MenuProps["items"] {
+  if (!role) return [];
+  return allMenuItems
+    .filter((item) => item.roles.includes(role))
+    .map(({ key, icon, label }) => ({ key, icon, label }));
+}
 
 export default function BackofficeLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -93,6 +69,8 @@ function BackofficeLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
+  const userRole = session?.user?.role as UserRole | undefined;
+  const menuItems = getMenuItems(userRole);
 
   const selectedKey = menuItems
     ?.filter((item): item is { key: string } => item !== null && "key" in item && typeof item.key === "string")
@@ -184,7 +162,8 @@ function BackofficeLayoutInner({ children }: { children: React.ReactNode }) {
             }}
           />
 
-          {/* New Appointment CTA */}
+          {/* New Appointment CTA — hidden for PROFESSIONAL (read-only agenda) */}
+          {userRole && userRole !== "PROFESSIONAL" && (
           <div style={{ padding: collapsed ? "12px 8px" : "12px 16px", flexShrink: 0 }}>
             {collapsed ? (
               <Tooltip title="Novo Agendamento" placement="right">
@@ -219,6 +198,7 @@ function BackofficeLayoutInner({ children }: { children: React.ReactNode }) {
               </Button>
             )}
           </div>
+          )}
 
           <Divider style={{ margin: "4px 0", borderColor: "rgba(255,255,255,0.08)" }} />
 
