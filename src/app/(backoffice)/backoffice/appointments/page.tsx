@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Table, Input, Select, Flex, Button, Space, Empty, Card, Tag } from "antd";
-import { ReloadOutlined, SearchOutlined, CalendarOutlined } from "@ant-design/icons";
+import { Table, Input, Select, Flex, Button, Space, Empty, Card, Tag, Modal, Form, DatePicker, App } from "antd";
+import { ReloadOutlined, SearchOutlined, CalendarOutlined, PlusOutlined } from "@ant-design/icons";
+import { api } from "@/lib/api";
+import dayjs from "dayjs";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusTag } from "@/components/ui/StatusTag";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -60,8 +62,62 @@ export default function AppointmentsPage() {
     activeClinicId ? `/api/admin/clinics/${activeClinicId}/appointments` : "",
   );
 
+  const { message } = App.useApp();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm] = Form.useForm();
+  const [patients, setPatients] = useState<Array<{ id: string; full_name: string | null; phone_e164: string | null }>>([]);
+  const [professionals, setProfessionals] = useState<Array<{ id: string; display_name: string }>>([]);
+  const [services, setServices] = useState<Array<{ id: string; code: string; display_name: string; duration_minutes: number }>>([]);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+
+  const loadFormData = async () => {
+    if (!activeClinicId) return;
+    try {
+      const [pats, profs, svcs] = await Promise.all([
+        api<Array<{ id: string; full_name: string | null; phone_e164: string | null }>>(`/api/admin/clinics/${activeClinicId}/patients`),
+        api<Array<{ id: string; display_name: string }>>(`/api/admin/clinics/${activeClinicId}/professionals`),
+        api<Array<{ id: string; code: string; display_name: string; duration_minutes: number }>>(`/api/admin/clinics/${activeClinicId}/services`),
+      ]);
+      setPatients(pats);
+      setProfessionals(profs);
+      setServices(svcs);
+    } catch {
+      message.error("Erro ao carregar dados do formulario");
+    }
+  };
+
+  const handleCreate = async (values: { patient_id: string; professional_id: string; service_code: string; starts_at: dayjs.Dayjs }) => {
+    setCreating(true);
+    try {
+      await api("/api/admin/appointments", {
+        method: "POST",
+        body: {
+          clinic_id: activeClinicId,
+          patient_id: values.patient_id,
+          professional_id: values.professional_id,
+          service_code: values.service_code,
+          starts_at: values.starts_at.toISOString(),
+        },
+      });
+      message.success("Agendamento criado com sucesso");
+      setCreateOpen(false);
+      createForm.resetFields();
+      refetch();
+    } catch (err: unknown) {
+      const apiErr = err as { data?: { error?: string } };
+      message.error(apiErr.data?.error ?? "Erro ao criar agendamento");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const openCreateModal = () => {
+    loadFormData();
+    setCreateOpen(true);
+  };
 
   const filtered = useMemo(() => {
     if (!appointments) return [];
@@ -156,9 +212,14 @@ export default function AppointmentsPage() {
         title="Agendamentos"
         subtitle={activeClinic ? `Gerencie os agendamentos da clínica` : "Agendamentos da clínica"}
         actions={
-          <Button icon={<ReloadOutlined />} onClick={refetch}>
-            Atualizar
-          </Button>
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={refetch}>
+              Atualizar
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+              Novo Agendamento
+            </Button>
+          </Space>
         }
       />
 
@@ -205,6 +266,73 @@ export default function AppointmentsPage() {
           }}
         />
       </Card>
+      <Modal
+        title="Novo Agendamento"
+        open={createOpen}
+        onCancel={() => { setCreateOpen(false); createForm.resetFields(); }}
+        footer={null}
+        destroyOnClose
+        width={520}
+      >
+        <Form form={createForm} layout="vertical" onFinish={handleCreate} style={{ marginTop: 16 }}>
+          <Form.Item name="patient_id" label="Paciente" rules={[{ required: true, message: "Selecione o paciente" }]}>
+            <Select
+              showSearch
+              placeholder="Buscar paciente..."
+              optionFilterProp="label"
+              options={patients.map((p) => ({
+                value: p.id,
+                label: `${p.full_name ?? "Sem nome"} ${p.phone_e164 ? `(${p.phone_e164})` : ""}`,
+              }))}
+            />
+          </Form.Item>
+
+          <Form.Item name="professional_id" label="Profissional" rules={[{ required: true, message: "Selecione o profissional" }]}>
+            <Select
+              showSearch
+              placeholder="Buscar profissional..."
+              optionFilterProp="label"
+              options={professionals.map((p) => ({
+                value: p.id,
+                label: p.display_name,
+              }))}
+            />
+          </Form.Item>
+
+          <Form.Item name="service_code" label="Servico" rules={[{ required: true, message: "Selecione o servico" }]}>
+            <Select
+              showSearch
+              placeholder="Buscar servico..."
+              optionFilterProp="label"
+              options={services.map((s) => ({
+                value: s.code,
+                label: `${s.display_name} (${s.duration_minutes} min)`,
+              }))}
+            />
+          </Form.Item>
+
+          <Form.Item name="starts_at" label="Data e hora" rules={[{ required: true, message: "Selecione a data e hora" }]}>
+            <DatePicker
+              showTime={{ format: "HH:mm", minuteStep: 15 }}
+              format="DD/MM/YYYY HH:mm"
+              style={{ width: "100%" }}
+              placeholder="Selecione data e hora"
+              disabledDate={(current) => current && current.isBefore(dayjs(), "day")}
+            />
+          </Form.Item>
+
+          <Form.Item style={{ marginBottom: 0, textAlign: "right" }}>
+            <Space>
+              <Button onClick={() => { setCreateOpen(false); createForm.resetFields(); }}>
+                Cancelar
+              </Button>
+              <Button type="primary" htmlType="submit" loading={creating}>
+                Criar agendamento
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
     </>
   );
 }
