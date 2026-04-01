@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -128,6 +129,9 @@ for (let profIdx = 1; profIdx <= 6; profIdx++) {
 
 async function cleanup() {
   console.log('Cleaning up existing seed data...');
+
+  await prisma.permission.deleteMany({});
+  await prisma.user.deleteMany({});
 
   // Delete in FK-safe order (children first)
   await prisma.calendarOutbox.deleteMany({ where: { appointment: { clinicId: { in: ALL_CLINIC_IDS } } } });
@@ -536,6 +540,78 @@ async function seedAvailabilityRules() {
   console.log(`  Created ${rules.length} availability rules (${rules.length / 2} time blocks across ${profEntries.length} professionals).`);
 }
 
+// ─── Users + Permissions ───────────────────────────────────
+
+const SUPERADMIN_USER_ID = '00000000-0000-0000-0002-000000000001';
+
+async function seedSuperadmin() {
+  console.log('Seeding superadmin user...');
+
+  const passwordHash = await bcrypt.hash('DentziAdmin2026!', 12);
+
+  await prisma.user.upsert({
+    where: { email: 'dev@dentzi.ai' },
+    update: {},
+    create: {
+      id: SUPERADMIN_USER_ID,
+      email: 'dev@dentzi.ai',
+      name: 'Superadmin',
+      role: 'SUPERADMIN',
+      passwordHash,
+      emailVerifiedAt: new Date(),
+      active: true,
+    },
+  });
+
+  console.log('  Created superadmin user (dev@dentzi.ai).');
+}
+
+async function seedPermissions() {
+  console.log('Seeding permissions...');
+
+  await prisma.permission.deleteMany({});
+
+  type P = { role: 'SUPERADMIN' | 'ADMIN' | 'PROFESSIONAL' | 'ATTENDANT'; resource: string; action: string; scope: 'OWN' | 'ORG' | 'ALL' };
+  const perms: P[] = [];
+
+  const resources = ['organizations', 'users', 'clinics', 'professionals', 'services', 'patients', 'appointments', 'conversations', 'settings', 'dashboard'];
+  const actions = ['create', 'read', 'update', 'delete'];
+
+  // SUPERADMIN: ALL on everything
+  for (const resource of resources) {
+    for (const action of actions) {
+      perms.push({ role: 'SUPERADMIN', resource, action, scope: 'ALL' });
+    }
+  }
+
+  // ADMIN: ORG on most things, no organizations
+  const adminResources = ['users', 'clinics', 'professionals', 'services', 'patients', 'appointments', 'conversations', 'settings', 'dashboard'];
+  for (const resource of adminResources) {
+    for (const action of actions) {
+      perms.push({ role: 'ADMIN', resource, action, scope: 'ORG' });
+    }
+  }
+
+  // PROFESSIONAL: OWN read on limited resources
+  perms.push({ role: 'PROFESSIONAL', resource: 'professionals', action: 'read', scope: 'OWN' });
+  perms.push({ role: 'PROFESSIONAL', resource: 'services', action: 'read', scope: 'ORG' });
+  perms.push({ role: 'PROFESSIONAL', resource: 'patients', action: 'read', scope: 'OWN' });
+  perms.push({ role: 'PROFESSIONAL', resource: 'appointments', action: 'read', scope: 'OWN' });
+  perms.push({ role: 'PROFESSIONAL', resource: 'dashboard', action: 'read', scope: 'OWN' });
+
+  // ATTENDANT
+  perms.push({ role: 'ATTENDANT', resource: 'patients', action: 'read', scope: 'ORG' });
+  perms.push({ role: 'ATTENDANT', resource: 'appointments', action: 'create', scope: 'ORG' });
+  perms.push({ role: 'ATTENDANT', resource: 'appointments', action: 'read', scope: 'ORG' });
+  perms.push({ role: 'ATTENDANT', resource: 'appointments', action: 'update', scope: 'ORG' });
+  perms.push({ role: 'ATTENDANT', resource: 'conversations', action: 'read', scope: 'ORG' });
+  perms.push({ role: 'ATTENDANT', resource: 'dashboard', action: 'read', scope: 'OWN' });
+
+  await prisma.permission.createMany({ data: perms });
+
+  console.log(`  Created ${perms.length} permissions.`);
+}
+
 // ─── Main ───────────────────────────────────────────────────
 
 async function main() {
@@ -552,6 +628,8 @@ async function main() {
   await seedPatients();
   await seedAppointments();
   await seedAvailabilityRules();
+  await seedSuperadmin();
+  await seedPermissions();
 
   console.log('\nSeed completed successfully!');
 }
