@@ -106,10 +106,10 @@ export function GoogleCalendarTab({ professional }: GoogleCalendarTabProps) {
     } catch (err: unknown) {
       const apiErr = err as { data?: { error?: string } };
       if (apiErr.data?.error === "ALREADY_CONNECTED") {
-        message.warning("Este profissional ja possui Google Calendar conectado");
+        message.warning("Este profissional já possui Google Calendar conectado");
         loadStatus();
       } else {
-        message.error("Erro ao gerar link de autorizacao");
+        message.error("Erro ao gerar link de autorização");
       }
     } finally {
       setInitiating(false);

@@ -3,6 +3,6 @@ node_modules
 .env
 .env.local
 .env.*.template
-.idea
+.idea/*
 coverage
 prisma/dev.db
