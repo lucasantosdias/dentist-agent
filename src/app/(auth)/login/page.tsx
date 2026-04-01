@@ -64,15 +64,15 @@ export default function LoginPage() {
       </div>
 
       {success === "password-reset" && (
-        <Alert type="success" message="Senha redefinida com sucesso. Faca login." showIcon style={{ marginBottom: 16 }} />
+        <Alert type="success" title="Senha redefinida com sucesso. Faca login." showIcon style={{ marginBottom: 16 }} />
       )}
 
       {success === "invite-accepted" && (
-        <Alert type="success" message="Conta criada com sucesso. Faca login." showIcon style={{ marginBottom: 16 }} />
+        <Alert type="success" title="Conta criada com sucesso. Faca login." showIcon style={{ marginBottom: 16 }} />
       )}
 
       {error && (
-        <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />
+        <Alert type="error" title={error} showIcon style={{ marginBottom: 16 }} />
       )}
 
       <Form layout="vertical" onFinish={handleSubmit} autoComplete="on">

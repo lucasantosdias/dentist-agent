@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
 
       {sent ? (
         <>
-          <Alert type="success" message="Se o email estiver cadastrado, voce recebera um link de recuperacao." showIcon style={{ marginBottom: 16 }} />
+          <Alert type="success" title="Se o email estiver cadastrado, voce recebera um link de recuperacao." showIcon style={{ marginBottom: 16 }} />
           <div style={{ textAlign: "center" }}>
             <Link href="/login">Voltar ao login</Link>
           </div>

@@ -64,7 +64,7 @@ export default function AcceptInvitePage() {
   if (!inviteInfo?.valid) {
     return (
       <Card style={{ width: 400, boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
-        <Alert type="error" message="Convite invalido ou expirado" description="Solicite um novo convite ao administrador." showIcon />
+        <Alert type="error" title="Convite invalido ou expirado" description="Solicite um novo convite ao administrador." showIcon />
         <div style={{ textAlign: "center", marginTop: 16 }}>
           <Link href="/login">Ir para o login</Link>
         </div>
@@ -88,7 +88,7 @@ export default function AcceptInvitePage() {
         <Tag color="blue" style={{ marginLeft: 8 }}>{inviteInfo.role}</Tag>
       </div>
 
-      {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" title={error} showIcon style={{ marginBottom: 16 }} />}
 
       <Form layout="vertical" onFinish={handleSubmit}>
         <Form.Item name="password" rules={[{ required: true, message: "Informe a senha" }, { min: 8, message: "Minimo 8 caracteres" }]}>

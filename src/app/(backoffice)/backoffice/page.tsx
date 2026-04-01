@@ -115,7 +115,7 @@ export default function DashboardPage() {
       </Flex>
 
       {error && (
-        <Alert type="error" message={error} style={{ marginBottom: 16 }} showIcon />
+        <Alert type="error" title={error} style={{ marginBottom: 16 }} showIcon />
       )}
 
       {loading ? (

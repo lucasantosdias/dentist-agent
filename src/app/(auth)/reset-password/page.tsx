@@ -19,7 +19,7 @@ export default function ResetPasswordPage() {
   if (!token) {
     return (
       <Card style={{ width: 400, boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
-        <Alert type="error" message="Link invalido. Solicite um novo." showIcon />
+        <Alert type="error" title="Link invalido. Solicite um novo." showIcon />
         <div style={{ textAlign: "center", marginTop: 16 }}>
           <Link href="/forgot-password">Solicitar novo link</Link>
         </div>
@@ -54,7 +54,7 @@ export default function ResetPasswordPage() {
         <Text type="secondary">Escolha uma nova senha</Text>
       </div>
 
-      {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" title={error} showIcon style={{ marginBottom: 16 }} />}
 
       <Form layout="vertical" onFinish={handleSubmit}>
         <Form.Item name="password" rules={[{ required: true, message: "Informe a nova senha" }, { min: 8, message: "Minimo 8 caracteres" }]}>

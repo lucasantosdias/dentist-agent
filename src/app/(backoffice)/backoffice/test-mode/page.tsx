@@ -394,7 +394,7 @@ export default function TestModePage() {
                   <div style={{ padding: 16, overflowY: "auto", height: "calc(100vh - 260px)", background: "#0f172a" }}>
                     {lastEntry ? (
                       lastEntry.error ? (
-                        <Alert type="error" message="Erro na requisição" description={lastEntry.error} showIcon style={{ marginBottom: 16 }} />
+                        <Alert type="error" title="Erro na requisição" description={lastEntry.error} showIcon style={{ marginBottom: 16 }} />
                       ) : (
                         <Space orientation="vertical" style={{ width: "100%" }} size="middle">
                           {/* Chain of Thought header */}

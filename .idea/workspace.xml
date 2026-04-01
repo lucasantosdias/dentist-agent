@@ -5,11 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="a74e1b93-d313-4d8a-b6d8-fe94c8b07f19" name="Changes" comment="feat: implement agent executor and tool registry for AI interactions">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources/27500885-147d-44a4-909a-3e91ff3ea2bf.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/27500885-147d-44a4-909a-3e91ff3ea2bf.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources/27500885-147d-44a4-909a-3e91ff3ea2bf/storage_v2/_src_/database/dentzi_ai.kQ1abg/schema/public.abK9xQ.meta" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/27500885-147d-44a4-909a-3e91ff3ea2bf/storage_v2/_src_/database/dentzi_ai.kQ1abg/schema/public.abK9xQ.meta" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app/(backoffice)/backoffice/appointments/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/app/(backoffice)/backoffice/appointments/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tsconfig.tsbuildinfo" beforeDir="false" afterPath="$PROJECT_DIR$/tsconfig.tsbuildinfo" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -131,7 +127,7 @@
       <workItem from="1774648143611" duration="6847000" />
       <workItem from="1774900546488" duration="732000" />
       <workItem from="1774901589772" duration="740000" />
-      <workItem from="1774962387764" duration="29517000" />
+      <workItem from="1774962387764" duration="35228000" />
     </task>
     <task id="LOCAL-00001" summary="Add initial project setup with PostgreSQL configuration and basic components">
       <option name="closed" value="true" />
