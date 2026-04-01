@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, Form, Input, Button, Typography, Alert } from "antd";
 import { LockOutlined } from "@ant-design/icons";
@@ -9,6 +9,14 @@ import { api } from "@/lib/api";
 const { Title, Text, Link } = Typography;
 
 export default function ResetPasswordPage() {
+  return (
+    <Suspense>
+      <ResetPasswordForm />
+    </Suspense>
+  );
+}
+
+function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");

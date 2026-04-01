@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { Table, Input, Select, Flex, Button, Space, Empty, Card, Tag, Modal, Form, DatePicker, App } from "antd";
 import { ReloadOutlined, SearchOutlined, CalendarOutlined, PlusOutlined } from "@ant-design/icons";
 import { api } from "@/lib/api";
@@ -53,6 +53,14 @@ const formatDateTime = (iso: string): string => {
 };
 
 export default function AppointmentsPage() {
+  return (
+    <Suspense>
+      <AppointmentsContent />
+    </Suspense>
+  );
+}
+
+function AppointmentsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { activeClinicId, activeClinic } = useClinicContext();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, Form, Input, Button, Typography, Alert, Spin, Tag } from "antd";
 import { LockOutlined, UserOutlined } from "@ant-design/icons";
@@ -11,6 +11,14 @@ const { Title, Text, Link } = Typography;
 type InviteInfo = { valid: boolean; name?: string; email?: string; role?: string };
 
 export default function AcceptInvitePage() {
+  return (
+    <Suspense>
+      <AcceptInviteForm />
+    </Suspense>
+  );
+}
+
+function AcceptInviteForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
