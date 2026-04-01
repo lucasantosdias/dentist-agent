@@ -542,18 +542,21 @@ async function seedAvailabilityRules() {
 
 // ─── Users + Permissions ───────────────────────────────────
 
-const SUPERADMIN_USER_ID = '00000000-0000-0000-0002-000000000001';
+const USER_SUPERADMIN = '00000000-0000-0000-0003-000000000001';
+const USER_ADMIN      = '00000000-0000-0000-0003-000000000002';
+const USER_ATTENDANT  = '00000000-0000-0000-0003-000000000003';
 
-async function seedSuperadmin() {
-  console.log('Seeding superadmin user...');
+async function seedUsers() {
+  console.log('Seeding users...');
 
   const passwordHash = await bcrypt.hash('DentziAdmin2026!', 12);
 
+  // Superadmin
   await prisma.user.upsert({
     where: { email: 'dev@dentzi.ai' },
     update: {},
     create: {
-      id: SUPERADMIN_USER_ID,
+      id: USER_SUPERADMIN,
       email: 'dev@dentzi.ai',
       name: 'Superadmin',
       role: 'SUPERADMIN',
@@ -563,7 +566,39 @@ async function seedSuperadmin() {
     },
   });
 
-  console.log('  Created superadmin user (dev@dentzi.ai).');
+  // Admin (also a professional — Dra. Ana Souza)
+  await prisma.user.upsert({
+    where: { email: 'admin@dentzi.ai' },
+    update: {},
+    create: {
+      id: USER_ADMIN,
+      email: 'admin@dentzi.ai',
+      name: 'Dra. Ana Souza',
+      role: 'ADMIN',
+      passwordHash,
+      emailVerifiedAt: new Date(),
+      active: true,
+      professionalId: PROF_ANA,
+    },
+  });
+
+  // Atendente
+  await prisma.user.upsert({
+    where: { email: 'atendente@dentzi.ai' },
+    update: {},
+    create: {
+      id: USER_ATTENDANT,
+      email: 'atendente@dentzi.ai',
+      name: 'Maria Atendente',
+      role: 'ATTENDANT',
+      passwordHash,
+      emailVerifiedAt: new Date(),
+      active: true,
+    },
+  });
+
+  console.log('  Created 3 users: superadmin (dev@dentzi.ai), admin (admin@dentzi.ai), atendente (atendente@dentzi.ai).');
+  console.log('  All passwords: DentziAdmin2026!');
 }
 
 async function seedPermissions() {
@@ -628,7 +663,7 @@ async function main() {
   await seedPatients();
   await seedAppointments();
   await seedAvailabilityRules();
-  await seedSuperadmin();
+  await seedUsers();
   await seedPermissions();
 
   console.log('\nSeed completed successfully!');
