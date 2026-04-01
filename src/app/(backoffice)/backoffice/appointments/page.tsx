@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Table, Input, Select, Flex, Button, Space, Empty, Card, Tag, Modal, Form, DatePicker, App } from "antd";
 import { ReloadOutlined, SearchOutlined, CalendarOutlined, PlusOutlined } from "@ant-design/icons";
 import { api } from "@/lib/api";
@@ -11,6 +11,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { useApi } from "@/hooks/useApi";
 import { useClinicContext } from "@/hooks/useClinicContext";
+import { useSearchParams, useRouter } from "next/navigation";
 import type { ColumnsType } from "antd/es/table";
 
 type Appointment = {
@@ -52,6 +53,8 @@ const formatDateTime = (iso: string): string => {
 };
 
 export default function AppointmentsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const { activeClinicId, activeClinic } = useClinicContext();
   const {
     data: appointments,
@@ -72,6 +75,16 @@ export default function AppointmentsPage() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+
+  // Auto-open modal when navigated with ?new=true
+  useEffect(() => {
+    if (searchParams.get("new") === "true" && activeClinicId) {
+      openCreateModal();
+      // Clean the URL param
+      router.replace("/backoffice/appointments");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, activeClinicId]);
 
   const loadFormData = async () => {
     if (!activeClinicId) return;

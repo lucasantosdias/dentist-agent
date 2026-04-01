@@ -191,6 +191,7 @@ function BackofficeLayoutInner({ children }: { children: React.ReactNode }) {
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
+                  onClick={() => router.push("/backoffice/appointments?new=true")}
                   style={{
                     width: "100%",
                     height: 40,
@@ -205,6 +206,7 @@ function BackofficeLayoutInner({ children }: { children: React.ReactNode }) {
                 type="primary"
                 icon={<PlusOutlined />}
                 block
+                onClick={() => router.push("/backoffice/appointments?new=true")}
                 style={{
                   height: 40,
                   borderRadius: 8,
