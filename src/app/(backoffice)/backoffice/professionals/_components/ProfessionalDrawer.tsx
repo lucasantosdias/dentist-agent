@@ -239,11 +239,11 @@ export function ProfessionalDrawer({
     <Drawer
       open={open}
       onClose={onClose}
-      width={640}
       title={null}
       styles={{
         header: { display: "none" },
         body: { padding: 0 },
+        wrapper: { width: 640 },
       }}
       destroyOnHidden
     >

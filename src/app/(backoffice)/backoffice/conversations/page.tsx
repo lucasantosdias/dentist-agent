@@ -267,7 +267,7 @@ export default function ConversationsPage() {
         }
         open={drawerOpen}
         onClose={closeDrawer}
-        width={560}
+        styles={{ wrapper: { width: 560 } }}
         extra={
           <Space>
             <Button
