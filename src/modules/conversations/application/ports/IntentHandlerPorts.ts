@@ -119,8 +119,8 @@ export interface RescheduleHandlerPort {
 }
 
 export type CatalogSnapshot = {
-  services: Array<{ service_code: string; name: string; duration_min: number }>;
-  professionals: Array<{ name: string }>;
+  services: Array<{ id: string; service_code: string; name: string; duration_min: number }>;
+  professionals: Array<{ id: string; name: string }>;
 };
 
 export interface CatalogSnapshotPort {

@@ -25,7 +25,11 @@ export function buildAgentSystemPrompt(context: {
   const isFirstTurn = context.conversationTurnCount <= 1;
 
   const serviceList = context.catalog.services
-    .map((s) => `  - ${s.name} (código: ${s.service_code}, ${s.duration_min} min)`)
+    .map((s) => `  - ${s.name} (id: ${s.id}, código: ${s.service_code}, ${s.duration_min} min)`)
+    .join("\n");
+
+  const professionalList = context.catalog.professionals
+    .map((p) => `  - ${p.name} (id: ${p.id})`)
     .join("\n");
 
   const knownFields: string[] = [];
@@ -57,8 +61,13 @@ Use esta data como referência para expressões temporais ("amanhã", "semana qu
 - Horário: ${hours}
 - Reserva temporária (hold): ${holdTtl} minutos
 
-## CATÁLOGO
+## CATÁLOGO DE SERVIÇOS
 ${serviceList || "  (nenhum serviço cadastrado)"}
+
+## PROFISSIONAIS
+${professionalList || "  (nenhum profissional cadastrado)"}
+
+Use os IDs (UUIDs) acima ao chamar check_availability e reserve_slot. NÃO invente IDs.
 
 ## DADOS JÁ CONHECIDOS DO PACIENTE
 ${knownFields.length > 0 ? knownFields.join("\n") : "(nenhum dado coletado ainda)"}
