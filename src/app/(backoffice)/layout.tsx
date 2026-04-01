@@ -76,6 +76,14 @@ const menuItems: MenuProps["items"] = [
 ];
 
 export default function BackofficeLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <SessionProvider>
+      <BackofficeLayoutInner>{children}</BackofficeLayoutInner>
+    </SessionProvider>
+  );
+}
+
+function BackofficeLayoutInner({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -88,7 +96,6 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
     .sort((a, b) => b.length - a.length)[0] || "/backoffice";
 
   return (
-    <SessionProvider>
     <ClinicProvider>
       <Layout style={{ minHeight: "100vh" }}>
         <Sider
@@ -323,6 +330,5 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
         </Layout>
       </Layout>
     </ClinicProvider>
-    </SessionProvider>
   );
 }
