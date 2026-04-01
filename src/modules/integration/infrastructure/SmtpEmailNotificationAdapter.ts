@@ -32,19 +32,28 @@ export class SmtpEmailNotificationAdapter implements NotificationPort {
     }
 
     try {
+      console.log("[SMTP] Sending email to:", input.recipient, "| template:", input.templateKey);
+
+      // Verify connection first
+      await this.transporter.verify();
+      console.log("[SMTP] Connection verified OK");
+
       const html = this.renderTemplate(input.templateKey, input.data);
 
-      await this.transporter.sendMail({
+      const result = await this.transporter.sendMail({
         from: this.from,
         to: input.recipient,
         subject: input.subject ?? input.templateKey,
         html,
       });
 
+      console.log("[SMTP] Email sent OK | messageId:", result.messageId);
       return { sent: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : "SMTP send failed";
-      console.error("SMTP email send failed:", message);
+      const stack = error instanceof Error ? error.stack : "";
+      console.error("[SMTP] ❌ Email send FAILED:", message);
+      console.error("[SMTP] Stack:", stack);
       return { sent: false, error: message };
     }
   }
