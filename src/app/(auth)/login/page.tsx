@@ -13,28 +13,47 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/backoffice";
   const success = searchParams.get("success");
+  const authError = searchParams.get("error");
+
+  const ERROR_MESSAGES: Record<string, string> = {
+    CredentialsSignin: "Email ou senha incorretos",
+    SessionRequired: "Sua sessao expirou. Faca login novamente.",
+    Default: "Ocorreu um erro. Tente novamente.",
+    OAuthSignin: "Erro ao iniciar autenticacao.",
+    OAuthCallback: "Erro no callback de autenticacao.",
+    OAuthCreateAccount: "Erro ao criar conta.",
+    Callback: "Erro no processo de autenticacao.",
+    AccessDenied: "Acesso negado.",
+    Configuration: "Erro de configuracao do servidor. Tente novamente mais tarde.",
+  };
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    authError ? (ERROR_MESSAGES[authError] ?? ERROR_MESSAGES.Default) : null,
+  );
 
   const handleSubmit = async (values: { email: string; password: string }) => {
     setLoading(true);
     setError(null);
 
-    const result = await signIn("credentials", {
-      redirect: false,
-      email: values.email,
-      password: values.password,
-    });
+    try {
+      const result = await signIn("credentials", {
+        redirect: false,
+        email: values.email,
+        password: values.password,
+      });
 
-    setLoading(false);
+      if (result?.error) {
+        setError(ERROR_MESSAGES[result.error] ?? result.error);
+        return;
+      }
 
-    if (result?.error) {
-      setError(result.error);
-      return;
+      router.push(callbackUrl);
+    } catch {
+      setError("Erro de conexao. Verifique sua internet e tente novamente.");
+    } finally {
+      setLoading(false);
     }
-
-    router.push(callbackUrl);
   };
 
   return (
